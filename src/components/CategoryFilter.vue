@@ -33,32 +33,35 @@ function select(category: string) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .category-filter__pill {
-  padding: 7px 18px;
+  padding: 8px 18px;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  background: transparent;
+  border-radius: var(--radius-md);
   white-space: nowrap;
   transition:
     color var(--transition-fast),
-    background-color var(--transition-fast),
-    border-color var(--transition-fast);
+    background-color var(--transition-fast);
 }
 
 .category-filter__pill:hover {
   color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .category-filter__pill--active {
   color: #fff;
   background: var(--color-primary);
-  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .category-filter__pill--active:hover {

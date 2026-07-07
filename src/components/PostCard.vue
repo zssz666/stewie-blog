@@ -8,20 +8,22 @@ const props = withDefaults(
   { featured: false },
 )
 
-const tagColors: Record<string, { from: string; to: string }> = {
-  Vue: { from: '#6366f1', to: '#4f46e5' },
-  TypeScript: { from: '#3b82f6', to: '#2563eb' },
-  Vite: { from: '#10b981', to: '#059669' },
-  CSS: { from: '#f59e0b', to: '#d97706' },
-  Pinia: { from: '#ec4899', to: '#db2777' },
+const tagColors: Record<string, { from: string; to: string; icon: string }> = {
+  Vue: { from: '#42b883', to: '#35495e', icon: 'V' },
+  TypeScript: { from: '#3178c6', to: '#235a97', icon: 'TS' },
+  Vite: { from: '#646cff', to: '#535bf2', icon: '⚡' },
+  CSS: { from: '#f59e0b', to: '#d97706', icon: '#' },
+  Pinia: { from: '#ffd859', to: '#f59e0b', icon: 'P' },
 }
 
 const coverStyle = computed(() => {
-  const colors = tagColors[props.post.tag] ?? { from: '#3b82f6', to: '#1d4ed8' }
+  const colors = tagColors[props.post.tag] ?? { from: '#2563eb', to: '#1d4ed8', icon: '•' }
   return {
     background: `linear-gradient(135deg, ${colors.from}, ${colors.to})`,
   }
 })
+
+const tagIcon = computed(() => tagColors[props.post.tag]?.icon ?? '•')
 
 const formattedDate = computed(() =>
   new Date(props.post.date).toLocaleDateString('zh-CN', {
@@ -46,17 +48,37 @@ const formattedViews = computed(() => {
   >
     <div class="post-card__cover" :style="coverStyle">
       <span class="post-card__tag">{{ post.tag }}</span>
+      <span class="post-card__cover-icon">{{ tagIcon }}</span>
+      <div class="post-card__cover-pattern" />
     </div>
     <div class="post-card__body">
       <span class="post-card__category">{{ post.category }}</span>
       <h3 class="post-card__title">{{ post.title }}</h3>
       <p class="post-card__excerpt">{{ post.excerpt }}</p>
       <div class="post-card__meta">
-        <span>{{ formattedDate }}</span>
+        <span class="post-card__meta-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" />
+            <path d="M3 10h18M8 2v4M16 2v4" />
+          </svg>
+          {{ formattedDate }}
+        </span>
         <span class="post-card__dot" />
-        <span>{{ post.readingTime }} 分钟</span>
+        <span class="post-card__meta-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          {{ post.readingTime }} 分钟
+        </span>
         <span class="post-card__dot" />
-        <span>{{ formattedViews }} 阅读</span>
+        <span class="post-card__meta-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          {{ formattedViews }}
+        </span>
       </div>
     </div>
   </RouterLink>
@@ -72,9 +94,9 @@ const formattedViews = computed(() => {
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
   transition:
-    transform 0.2s var(--ease),
-    box-shadow 0.2s var(--ease),
-    border-color 0.2s var(--ease);
+    transform 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    border-color 0.25s var(--ease);
 }
 
 .post-card:hover {
@@ -91,36 +113,64 @@ const formattedViews = computed(() => {
   opacity: 1;
 }
 
+.post-card:hover .post-card__cover-icon {
+  transform: scale(1.1) rotate(-5deg);
+}
+
 /* ── 封面 ── */
 .post-card__cover {
   position: relative;
   flex-shrink: 0;
-  width: 40%;
-  min-height: 160px;
+  width: 38%;
+  min-height: 170px;
   overflow: hidden;
+  display: grid;
+  place-items: center;
 }
 
 .post-card__cover::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 50%);
   opacity: 0;
-  transition: opacity 0.3s var(--ease);
+  transition: opacity 0.35s var(--ease);
+}
+
+.post-card__cover-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 30px 30px, 24px 24px;
+  opacity: 0.6;
 }
 
 .post-card__tag {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 14px;
+  left: 14px;
   z-index: 1;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+.post-card__cover-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 42px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.35s var(--ease-spring);
 }
 
 /* ── 内容区 ── */
@@ -128,22 +178,26 @@ const formattedViews = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 20px 24px;
+  padding: 22px 26px;
   flex: 1;
   min-width: 0;
 }
 
 .post-card__category {
   align-self: flex-start;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: var(--color-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .post-card__title {
   font-size: 18px;
   line-height: 1.4;
+  font-weight: 700;
   color: var(--color-heading);
+  letter-spacing: -0.01em;
   transition: color var(--transition-fast);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -155,7 +209,7 @@ const formattedViews = computed(() => {
 .post-card__excerpt {
   color: var(--color-text-secondary);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.7;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -166,11 +220,22 @@ const formattedViews = computed(() => {
 .post-card__meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-top: auto;
-  padding-top: 4px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  padding-top: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.post-card__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.post-card__meta-item svg {
+  opacity: 0.7;
 }
 
 .post-card__dot {
@@ -178,23 +243,24 @@ const formattedViews = computed(() => {
   height: 3px;
   border-radius: 50%;
   background: currentColor;
-  opacity: 0.5;
+  opacity: 0.4;
+  flex-shrink: 0;
 }
 
 /* ── Featured 变体 ── */
 .post-card--featured .post-card__cover {
-  width: 45%;
-  min-height: 280px;
+  width: 44%;
+  min-height: 300px;
 }
 
 .post-card--featured .post-card__body {
-  padding: 32px 36px;
+  padding: 36px 40px;
   justify-content: center;
 }
 
 .post-card--featured .post-card__title {
-  font-size: 24px;
-  line-height: 1.35;
+  font-size: 26px;
+  line-height: 1.3;
   -webkit-line-clamp: 3;
   line-clamp: 3;
 }
@@ -203,6 +269,10 @@ const formattedViews = computed(() => {
   font-size: 15px;
   -webkit-line-clamp: 3;
   line-clamp: 3;
+}
+
+.post-card--featured .post-card__cover-icon {
+  font-size: 64px;
 }
 
 @media (max-width: 640px) {
@@ -216,15 +286,29 @@ const formattedViews = computed(() => {
   }
 
   .post-card--featured .post-card__cover {
-    min-height: 160px;
+    min-height: 170px;
   }
 
   .post-card--featured .post-card__body {
-    padding: 20px 24px;
+    padding: 22px 24px;
   }
 
   .post-card--featured .post-card__title {
-    font-size: 18px;
+    font-size: 19px;
+  }
+
+  .post-card--featured .post-card__cover-icon {
+    font-size: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-card:hover {
+    transform: none;
+  }
+
+  .post-card:hover .post-card__cover-icon {
+    transform: none;
   }
 }
 </style>

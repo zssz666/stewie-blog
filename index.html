@@ -4,7 +4,67 @@
     <meta charset="UTF-8">
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>stewie - 个人博客</title>
+
+    <!-- 字体：Inter（无衬线）+ Lora（衬线标题）+ JetBrains Mono（代码） -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    >
+    <!-- ===== 核心 SEO（首页默认，子页面由 @unhead/vue 动态覆盖） ===== -->
+    <title>Stewie 博客 | Vue 3 踩坑 · TypeScript · Vite 实战笔记</title>
+    <meta name="description" content="Stewie 的前端开发博客。分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧、Pinia 实战经验。不搞高深理论，专注问题解决与学习心得。">
+    <meta name="author" content="Stewie">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+    <link rel="canonical" href="http://8.137.165.237:88/">
+
+    <!-- ===== Open Graph（社交分享卡片） ===== -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Stewie 博客">
+    <meta property="og:title" content="Stewie 博客 | Vue 3 · TypeScript · Vite 实战">
+    <meta property="og:description" content="分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧。不搞高深理论，专注问题解决。">
+    <meta property="og:url" content="http://8.137.165.237:88/">
+    <meta property="og:image" content="http://8.137.165.237:88/og-image.png">
+    <meta property="og:locale" content="zh_CN">
+
+    <!-- ===== Twitter Card ===== -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Stewie 的前端博客 | Vue 3 · TypeScript · Vite 实战">
+    <meta name="twitter:description" content="分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧。">
+    <meta name="twitter:image" content="http://8.137.165.237:88/og-image.png">
+
+    <!-- ===== 移动端 / PWA ===== -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Stewie Blog">
+
+    <!-- ===== 结构化数据：WebSite + Person（E-E-A-T 信号） ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "http://8.137.165.237:88/#website",
+          "url": "http://8.137.165.237:88/",
+          "name": "Stewie 的前端博客",
+          "description": "Vue 3 踩坑 · TypeScript · Vite 实战笔记",
+          "inLanguage": "zh-CN",
+          "publisher": { "@id": "http://8.137.165.237:88/#person" }
+        },
+        {
+          "@type": "Person",
+          "@id": "http://8.137.165.237:88/#person",
+          "name": "Stewie",
+          "url": "http://8.137.165.237:88/about",
+          "jobTitle": "前端工程师",
+          "knowsAbout": ["Vue 3", "TypeScript", "Vite", "Pinia", "Node.js"]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -48,7 +48,7 @@ onBeforeUnmount(() => {
   <header class="navbar" :class="navClass">
     <div class="container navbar__inner">
       <RouterLink to="/" class="navbar__brand" @click="closeMenu">
-        <img src="/favicon.ico" alt="Stewie" class="navbar__logo" />
+        <span class="navbar__logo">S</span>
         <span class="navbar__name">Stewie</span>
       </RouterLink>
 
@@ -116,9 +116,9 @@ onBeforeUnmount(() => {
   right: 0;
   z-index: 100;
   height: var(--header-height);
-  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--color-bg) 85%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-bottom: 1px solid transparent;
   transition:
     background-color 0.3s var(--ease),
@@ -137,11 +137,11 @@ onBeforeUnmount(() => {
 
 /* 首页滚动后：暗色 blur */
 .navbar--home.navbar--scrolled {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(10, 15, 28, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-bottom-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
 
 /* 非首页滚动后 */
@@ -161,17 +161,30 @@ onBeforeUnmount(() => {
 .navbar__brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--color-heading);
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.02em;
   transition: color var(--transition-fast);
 }
 
 .navbar__logo {
-  width: 28px;
-  height: 28px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  transition: transform var(--transition-fast);
+}
+
+.navbar__brand:hover .navbar__logo {
+  transform: rotate(-8deg) scale(1.05);
 }
 
 .navbar__nav {
@@ -183,10 +196,10 @@ onBeforeUnmount(() => {
 
 .navbar__link {
   position: relative;
-  padding: 8px 14px;
+  padding: 8px 16px;
   color: var(--color-text-secondary);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 14.5px;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast);
 }
@@ -194,15 +207,15 @@ onBeforeUnmount(() => {
 .navbar__link::after {
   content: '';
   position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
+  left: 16px;
+  right: 16px;
+  bottom: 2px;
   height: 2px;
   background: var(--color-primary);
   border-radius: 2px;
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform 0.2s var(--ease);
+  transition: transform 0.25s var(--ease);
 }
 
 .navbar__link:hover {
@@ -229,25 +242,28 @@ onBeforeUnmount(() => {
 }
 
 .navbar--home:not(.navbar--scrolled) .navbar__link::after {
-  background: #60a5fa;
+  background: var(--hero-accent);
 }
 
-.navbar--home:not(.navbar--scrolled) .navbar__link.router-link-exact-active::after {
-  background: #93c5fd;
+.navbar--home:not(.navbar--scrolled) .navbar__logo {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: none;
 }
 
 .navbar__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .theme-toggle,
 .navbar__burger {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   color: var(--color-text);
   background: var(--color-surface);
@@ -270,6 +286,8 @@ onBeforeUnmount(() => {
   color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .navbar--home:not(.navbar--scrolled) .theme-toggle:hover,
@@ -302,24 +320,24 @@ onBeforeUnmount(() => {
 
 .navbar__drawer {
   position: absolute;
-  top: var(--header-height);
+  top: calc(var(--header-height) - 8px);
   right: 16px;
   left: 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px;
+  padding: 10px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
 }
 
 .navbar__drawer-link {
-  padding: 12px 14px;
+  padding: 13px 16px;
   color: var(--color-text);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 15px;
   border-radius: var(--radius-sm);
   transition:
     background-color var(--transition-fast),
@@ -335,7 +353,9 @@ onBeforeUnmount(() => {
 .navbar__backdrop {
   position: fixed;
   inset: var(--header-height) 0 0 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: -1;
 }
 

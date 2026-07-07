@@ -72,25 +72,27 @@ onBeforeUnmount(() => {
 <style scoped>
 .back-to-top {
   position: fixed;
-  bottom: 28px;
-  right: 28px;
+  bottom: 32px;
+  right: 32px;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: var(--radius-full);
   color: #fff;
   background: var(--color-primary);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-primary);
   z-index: 90;
   transition:
     background-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .back-to-top:hover {
   background: var(--color-primary-hover);
-  box-shadow: var(--shadow-lg), 0 0 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
+  transform: translateY(-3px);
 }
 
 .back-to-top:hover .back-to-top__icon {
@@ -102,13 +104,13 @@ onBeforeUnmount(() => {
     transform: translateY(0) rotate(0);
   }
   25% {
-    transform: translateY(-3px) rotate(-8deg);
+    transform: translateY(-4px) rotate(-8deg);
   }
   50% {
     transform: translateY(0) rotate(0);
   }
   75% {
-    transform: translateY(-2px) rotate(8deg);
+    transform: translateY(-3px) rotate(8deg);
   }
   100% {
     transform: translateY(0) rotate(0);
@@ -128,9 +130,22 @@ onBeforeUnmount(() => {
   transform: translateY(20px) scale(0.8);
 }
 
+@media (max-width: 640px) {
+  .back-to-top {
+    bottom: 20px;
+    right: 20px;
+    width: 42px;
+    height: 42px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .back-to-top:hover .back-to-top__icon {
     animation: none;
+  }
+
+  .back-to-top:hover {
+    transform: none;
   }
 
   .top-btn-enter-active,

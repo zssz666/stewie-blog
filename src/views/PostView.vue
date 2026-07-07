@@ -99,7 +99,7 @@ function setupTocObserver() {
 function scrollToHeading(id: string) {
   const el = document.getElementById(id)
   if (el) {
-    const top = el.getBoundingClientRect().top + window.scrollY - 80
+    const top = el.getBoundingClientRect().top + window.scrollY - 90
     window.scrollTo({ top, behavior: 'smooth' })
   }
 }
@@ -132,7 +132,7 @@ function enhanceCodeBlocks() {
       const text = code ? code.textContent : pre.textContent
       if (text) {
         navigator.clipboard.writeText(text).then(() => {
-          copyBtn.textContent = '✓'
+          copyBtn.textContent = '✓ 已复制'
           copyBtn.classList.add('code-copy--copied')
           setTimeout(() => {
             copyBtn.textContent = '复制'
@@ -187,13 +187,23 @@ onBeforeUnmount(() => {
     <!-- 顶部 banner -->
     <header ref="bannerRef" class="post__banner">
       <div class="post__banner-bg" />
+      <div class="post__banner-grid" aria-hidden="true" />
       <div class="post__banner-overlay" />
       <div class="container post__banner-inner">
-        <RouterLink to="/articles" class="post__back">← 返回文章列表</RouterLink>
+        <RouterLink to="/articles" class="post__back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 19-7-7 7-7" />
+            <path d="M19 12H5" />
+          </svg>
+          返回文章列表
+        </RouterLink>
         <span class="post__tag">{{ post.tag }}</span>
         <h1 class="post__title">{{ post.title }}</h1>
         <div class="post__meta">
-          <span>{{ author.name }}</span>
+          <span class="post__author">
+            <span class="post__author-avatar">{{ author.name.charAt(0) }}</span>
+            {{ author.name }}
+          </span>
           <span class="post__dot" />
           <span>{{ formattedViews }} 阅读</span>
           <span class="post__dot" />
@@ -209,6 +219,12 @@ onBeforeUnmount(() => {
       <div ref="articleRef" class="post__main">
         <!-- 摘要框 -->
         <div class="post__summary">
+          <svg class="post__summary-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="17" x2="13" y2="17" />
+          </svg>
           <p>{{ post.excerpt }}</p>
         </div>
 
@@ -227,6 +243,7 @@ onBeforeUnmount(() => {
               <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7" />
             </svg>
             <span>{{ likeCount }}</span>
+            <span class="like-btn__label">{{ liked ? '已赞' : '点赞' }}</span>
           </button>
           <RouterLink to="/articles" class="comment-link">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -239,7 +256,17 @@ onBeforeUnmount(() => {
 
       <aside class="post__sidebar">
         <div v-if="tocItems.length > 0" class="post__toc">
-          <p class="toc__title">目录</p>
+          <p class="toc__title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+            目录
+          </p>
           <ul class="toc__list">
             <li
               v-for="item in tocItems"
@@ -274,19 +301,20 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: var(--color-primary);
+  height: 3px;
+  background: linear-gradient(to right, var(--color-primary), var(--color-primary-hover));
   transform: scaleX(0);
   transform-origin: left center;
   z-index: 200;
   transition: transform 0.05s linear;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 }
 
 /* ── banner ── */
 .post__banner {
   position: relative;
-  height: 40vh;
-  min-height: 280px;
+  height: 46vh;
+  min-height: 320px;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -300,10 +328,22 @@ onBeforeUnmount(() => {
   will-change: transform;
 }
 
+.post__banner-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(96, 165, 250, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+  pointer-events: none;
+}
+
 .post__banner-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.5));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.5));
 }
 
 .post__banner-inner {
@@ -312,51 +352,87 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
+  gap: 16px;
   color: #fff;
+  padding-top: 20px;
 }
 
 .post__back {
   position: absolute;
-  top: 0;
+  top: -10px;
   left: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
   font-weight: 500;
-  transition: color var(--transition-fast);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .post__back:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .post__tag {
-  padding: 4px 14px;
+  padding: 5px 16px;
   font-size: 12px;
   font-weight: 600;
   color: #fff;
   background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
 }
 
 .post__title {
-  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-size: clamp(1.7rem, 5vw, 2.8rem);
   font-weight: 800;
   line-height: 1.25;
   color: #fff;
-  max-width: 760px;
-  letter-spacing: -0.02em;
+  max-width: 820px;
+  letter-spacing: -0.03em;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.3);
 }
 
 .post__meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.75);
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.post__author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.post__author-avatar {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border-radius: 50%;
 }
 
 .post__dot {
@@ -370,8 +446,8 @@ onBeforeUnmount(() => {
 /* ── 布局 ── */
 .post__layout {
   display: flex;
-  gap: 32px;
-  padding-top: 48px;
+  gap: 40px;
+  padding-top: 56px;
   padding-bottom: var(--section-gap);
 }
 
@@ -386,23 +462,34 @@ onBeforeUnmount(() => {
   width: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 /* ── 摘要框 ── */
 .post__summary {
-  margin-bottom: 32px;
-  padding: 20px 24px;
-  background: var(--color-bg-soft);
+  position: relative;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 36px;
+  padding: 22px 24px;
+  background: linear-gradient(135deg, var(--color-primary-softer), transparent);
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-primary);
   border-radius: var(--radius-md);
 }
 
+.post__summary-icon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
 .post__summary p {
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.8;
   color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 /* ── TOC ── */
@@ -410,20 +497,29 @@ onBeforeUnmount(() => {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 22px;
   position: sticky;
   top: calc(var(--header-height) + 24px);
   max-height: calc(100vh - var(--header-height) - 48px);
   overflow-y: auto;
+  box-shadow: var(--shadow-sm);
 }
 
 .toc__title {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-heading);
-  margin-bottom: 14px;
-  padding-bottom: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--color-border);
+  letter-spacing: 0.02em;
+}
+
+.toc__title svg {
+  color: var(--color-primary);
 }
 
 .toc__list {
@@ -433,38 +529,42 @@ onBeforeUnmount(() => {
 }
 
 .toc__item {
-  padding: 6px 0 6px 12px;
+  padding: 7px 0 7px 14px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--color-text-secondary);
   cursor: pointer;
   border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   transition:
     color var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .toc__item--h3 {
-  padding-left: 28px;
-  font-size: 12px;
+  padding-left: 30px;
+  font-size: 12.5px;
 }
 
 .toc__item:hover {
   color: var(--color-heading);
+  background: var(--color-bg-soft);
 }
 
 .toc__item--active {
   color: var(--color-primary);
   border-left-color: var(--color-primary);
+  background: var(--color-primary-soft);
   font-weight: 600;
 }
 
 /* ── 底部互动 ── */
 .post__actions {
   display: flex;
-  gap: 16px;
-  margin-top: 48px;
-  padding-top: 28px;
+  gap: 14px;
+  margin-top: 52px;
+  padding-top: 32px;
   border-top: 1px solid var(--color-border);
 }
 
@@ -473,7 +573,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 11px 22px;
   border-radius: var(--radius-full);
   font-size: 14px;
   font-weight: 600;
@@ -483,27 +583,34 @@ onBeforeUnmount(() => {
   transition:
     color var(--transition-fast),
     border-color var(--transition-fast),
-    background-color var(--transition-fast);
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-.like-btn:hover {
+.like-btn:hover,
+.comment-link:hover {
   color: var(--color-primary);
   border-color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
 .like-btn--active {
   color: #fff;
   background: var(--color-primary);
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .like-btn--active:hover {
   background: var(--color-primary-hover);
+  color: #fff;
 }
 
-.comment-link:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+.like-btn__label {
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid currentColor;
+  opacity: 0.5;
 }
 
 /* ── 404 ── */
@@ -515,13 +622,14 @@ onBeforeUnmount(() => {
   text-align: center;
   padding-top: calc(var(--header-height) + 100px);
   padding-bottom: 100px;
-  gap: 14px;
+  gap: 16px;
 }
 
 .post__missing-title {
-  font-size: 4rem;
-  font-weight: 700;
+  font-size: 5rem;
+  font-weight: 800;
   color: var(--color-primary);
+  letter-spacing: -0.04em;
 }
 
 .post__missing-text {
@@ -538,21 +646,31 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .post__banner {
-    min-height: 240px;
+    min-height: 280px;
   }
 
   .post__layout {
-    padding-top: 32px;
+    padding-top: 36px;
+    gap: 0;
   }
 
   .post__actions {
     flex-direction: column;
+  }
+
+  .post__summary {
+    padding: 18px 20px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .post__banner-bg {
     transform: none !important;
+  }
+
+  .like-btn:hover,
+  .comment-link:hover {
+    transform: none;
   }
 }
 </style>

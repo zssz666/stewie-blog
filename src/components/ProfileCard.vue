@@ -10,6 +10,7 @@ const socialIcons: Record<string, string> = {
 
 <template>
   <div class="profile-card">
+    <div class="profile-card__decor" aria-hidden="true" />
     <div class="profile-card__avatar">
       {{ author.name.charAt(0) }}
     </div>
@@ -43,44 +44,71 @@ const socialIcons: Record<string, string> = {
 
 <style scoped>
 .profile-card {
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 24px 20px;
+  padding: 28px 22px 22px;
   text-align: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition);
+}
+
+.profile-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.profile-card__decor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  opacity: 0.08;
 }
 
 .profile-card__avatar {
-  width: 64px;
-  height: 64px;
+  position: relative;
+  width: 68px;
+  height: 68px;
   margin: 0 auto 14px;
   display: grid;
   place-items: center;
   font-size: 28px;
   font-weight: 800;
   color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--hero-dark-3));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   border-radius: 50%;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+  border: 3px solid var(--color-surface);
+  transition: transform var(--transition);
+}
+
+.profile-card:hover .profile-card__avatar {
+  transform: scale(1.05);
 }
 
 .profile-card__name {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-heading);
+  letter-spacing: -0.01em;
 }
 
 .profile-card__role {
   margin-top: 4px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--color-primary);
+  letter-spacing: 0.04em;
 }
 
 .profile-card__bio {
   margin-top: 12px;
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.7;
   color: var(--color-text-secondary);
 }
 
@@ -103,11 +131,13 @@ const socialIcons: Record<string, string> = {
   border-radius: 50%;
   transition:
     color var(--transition-fast),
-    background-color var(--transition-fast);
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .profile-card__social:hover {
   color: #fff;
   background: var(--color-primary);
+  transform: translateY(-2px);
 }
 </style>
