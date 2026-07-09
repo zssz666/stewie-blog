@@ -2,11 +2,14 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Post } from '@/types/blog'
+import { useMagnetic } from '@/composables/useMagnetic'
 
 const props = withDefaults(
   defineProps<{ post: Post; featured?: boolean }>(),
   { featured: false },
 )
+
+const { x: magX, y: magY, onMouseMove, onMouseLeave } = useMagnetic(10, 1.4, 0.15)
 
 const tagColors: Record<string, { from: string; to: string; icon: string }> = {
   Vue: { from: '#42b883', to: '#35495e', icon: 'V' },
@@ -38,6 +41,10 @@ const formattedViews = computed(() => {
   if (v >= 1000) return `${(v / 1000).toFixed(1)}k`
   return String(v)
 })
+
+const magneticStyle = computed(() => ({
+  transform: `translate(${magX.value}px, ${magY.value}px)`,
+}))
 </script>
 
 <template>
@@ -45,11 +52,16 @@ const formattedViews = computed(() => {
     :to="`/post/${post.slug}`"
     class="post-card"
     :class="{ 'post-card--featured': featured }"
+    :style="magneticStyle"
+    @mousemove="onMouseMove"
+    @mouseleave="onMouseLeave"
   >
     <div class="post-card__cover" :style="coverStyle">
       <span class="post-card__tag">{{ post.tag }}</span>
       <span class="post-card__cover-icon">{{ tagIcon }}</span>
       <div class="post-card__cover-pattern" />
+      <!-- 悬停时的光晕扩散 -->
+      <div class="post-card__glow" />
     </div>
     <div class="post-card__body">
       <span class="post-card__category">{{ post.category }}</span>
@@ -74,7 +86,7 @@ const formattedViews = computed(() => {
         <span class="post-card__dot" />
         <span class="post-card__meta-item">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10 7-10-7Z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
           {{ formattedViews }}
@@ -86,6 +98,7 @@ const formattedViews = computed(() => {
 
 <style scoped>
 .post-card {
+  position: relative;
   display: flex;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -95,26 +108,65 @@ const formattedViews = computed(() => {
   box-shadow: var(--shadow-sm);
   transition:
     transform 0.25s var(--ease),
-    box-shadow 0.25s var(--ease),
-    border-color 0.25s var(--ease);
+    box-shadow 0.35s var(--ease),
+    border-color 0.35s var(--ease);
+  /* 磁性效果由 inline style 驱动 */
 }
 
 .post-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-hover);
-  border-color: var(--color-border-hover);
+  box-shadow:
+    var(--shadow-hover),
+    0 0 0 1px rgba(37, 99, 235, 0.08),
+    0 0 32px rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+/* ── 悬停内部元素交错动画 ── */
+.post-card:hover .post-card__tag {
+  transform: translateY(-2px) scale(1.04);
 }
 
 .post-card:hover .post-card__title {
   color: var(--color-primary);
+  transform: translateX(4px);
 }
 
-.post-card:hover .post-card__cover::after {
+.post-card:hover .post-card__excerpt {
+  opacity: 0.8;
+  transform: translateX(2px);
+}
+
+.post-card:hover .post-card__meta {
   opacity: 1;
+  transform: translateY(-2px);
 }
 
-.post-card:hover .post-card__cover-icon {
-  transform: scale(1.1) rotate(-5deg);
+/* ── 高光扫过（仅支持悬停的设备） ── */
+@media (hover: hover) {
+  .post-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.18) 50%,
+      transparent 70%
+    );
+    transform: translateX(-130%);
+    transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .post-card:hover::before {
+    transform: translateX(130%);
+  }
+
+  .post-card:hover .post-card__cover-pattern {
+    transform: scale(1.12) rotate(2deg);
+  }
 }
 
 /* ── 封面 ── */
@@ -126,15 +178,39 @@ const formattedViews = computed(() => {
   overflow: hidden;
   display: grid;
   place-items: center;
+  transition: transform 0.5s var(--ease-spring);
+}
+
+/* 悬停时封面微放大 */
+.post-card:hover .post-card__cover {
+  transform: scale(1.03);
 }
 
 .post-card__cover::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 50%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 55%);
   opacity: 0;
-  transition: opacity 0.35s var(--ease);
+  transition: opacity 0.4s var(--ease);
+}
+
+.post-card:hover .post-card__cover::after {
+  opacity: 1;
+}
+
+/* 光晕扩散 */
+.post-card__glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at center, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+  z-index: 0;
+}
+
+.post-card:hover .post-card__glow {
+  opacity: 1;
 }
 
 .post-card__cover-pattern {
@@ -145,13 +221,14 @@ const formattedViews = computed(() => {
     radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: 30px 30px, 24px 24px;
   opacity: 0.6;
+  transition: transform 0.6s var(--ease-spring);
 }
 
 .post-card__tag {
   position: absolute;
   top: 14px;
   left: 14px;
-  z-index: 1;
+  z-index: 2;
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -161,6 +238,7 @@ const formattedViews = computed(() => {
   -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-full);
   letter-spacing: 0.02em;
+  transition: transform 0.35s var(--ease-spring), opacity 0.3s var(--ease);
 }
 
 .post-card__cover-icon {
@@ -170,7 +248,11 @@ const formattedViews = computed(() => {
   font-weight: 800;
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-  transition: transform 0.35s var(--ease-spring);
+  transition: transform 0.45s var(--ease-spring);
+}
+
+.post-card:hover .post-card__cover-icon {
+  transform: scale(1.15) rotate(-5deg);
 }
 
 /* ── 内容区 ── */
@@ -190,6 +272,7 @@ const formattedViews = computed(() => {
   color: var(--color-primary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  transition: transform 0.3s var(--ease-spring);
 }
 
 .post-card__title {
@@ -198,7 +281,7 @@ const formattedViews = computed(() => {
   font-weight: 700;
   color: var(--color-heading);
   letter-spacing: -0.01em;
-  transition: color var(--transition-fast);
+  transition: color 0.25s var(--ease-fast), transform 0.35s var(--ease-spring);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -215,6 +298,7 @@ const formattedViews = computed(() => {
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  transition: opacity 0.3s var(--ease), transform 0.35s var(--ease-spring);
 }
 
 .post-card__meta {
@@ -226,6 +310,8 @@ const formattedViews = computed(() => {
   color: var(--color-text-tertiary);
   font-size: 12.5px;
   font-weight: 500;
+  opacity: 0.75;
+  transition: opacity 0.3s var(--ease), transform 0.35s var(--ease-spring);
 }
 
 .post-card__meta-item {
@@ -304,10 +390,16 @@ const formattedViews = computed(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .post-card:hover {
-    transform: none;
+    transform: none !important;
   }
 
-  .post-card:hover .post-card__cover-icon {
+  .post-card:hover .post-card__cover,
+  .post-card:hover .post-card__cover-icon,
+  .post-card:hover .post-card__tag,
+  .post-card:hover .post-card__title,
+  .post-card:hover .post-card__excerpt,
+  .post-card:hover .post-card__meta,
+  .post-card:hover .post-card__cover-pattern {
     transform: none;
   }
 }

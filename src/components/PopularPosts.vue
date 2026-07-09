@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { posts } from '@/data/posts'
+import type { Post } from '@/types/blog'
+import { getPopularPosts } from '@/api/post'
 
-const popularPosts = computed(() =>
-  [...posts].sort((a, b) => b.views - a.views).slice(0, 4),
-)
+const popularPosts = ref<Post[]>([])
+
+onMounted(async () => {
+  try {
+    popularPosts.value = await getPopularPosts()
+  } catch (e) {
+    console.error('获取热门文章失败:', e)
+  }
+})
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('zh-CN', {

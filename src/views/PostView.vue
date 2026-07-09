@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { getPostBySlug, author } from '@/data/posts'
+import type { Author, Post } from '@/types/blog'
+import { getPostBySlug } from '@/api/post'
+import { getAuthor } from '@/api/author'
+import { useUiStore } from '@/stores/ui'
 import PopularPosts from '@/components/PopularPosts.vue'
 
 const route = useRoute()
+const uiStore = useUiStore()
 const slug = computed(() => String(route.params.slug ?? ''))
-const post = computed(() => getPostBySlug(slug.value))
+
+const post = ref<Post | null>(null)
+const loading = ref(true)
+// 占位值，接口返回前模板不会报错
+const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
 
 const formattedDate = computed(() => {
   if (!post.value) return ''
@@ -162,25 +170,55 @@ function handleScroll() {
   updateParallax()
 }
 
-onMounted(async () => {
-  if (!post.value) return
-  likeCount.value = Math.floor(post.value.views * 0.03)
-  await nextTick()
-  buildToc()
-  enhanceCodeBlocks()
-  setupTocObserver()
+async function loadPost() {
+  loading.value = true
+  post.value = null
+  try {
+    const data = await getPostBySlug(slug.value)
+    post.value = data
+    liked.value = false
+    // 用真实点赞数初始化（后端暂无独立点赞接口，前端仅做本地乐观切换）
+    likeCount.value = data.likes ?? 0
+    uiStore.setPostTitle(data.title) // 供导航栏吸顶显示
+    nextTick(() => {
+      buildToc()
+      enhanceCodeBlocks()
+      setupTocObserver()
+      handleScroll()
+    })
+  } catch (e) {
+    post.value = null
+    uiStore.clearPostTitle()
+    console.error('获取文章失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
-  handleScroll()
+  loadPost()
+  getAuthor()
+    .then((a) => { author.value = a })
+    .catch((e) => console.error('获取作者信息失败:', e))
+})
+
+// 切换文章（slug 变化，组件被复用）时重新拉取
+watch(slug, () => {
+  loadPost()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   tocObserver?.disconnect()
+  uiStore.clearPostTitle()
 })
 </script>
 
 <template>
-  <article v-if="post" class="post">
+  <div v-if="loading" class="post__loading">加载中…</div>
+
+  <article v-else-if="post" class="post">
     <!-- 阅读进度条 -->
     <div class="reading-progress" :style="{ transform: `scaleX(${progress})` }" />
 
@@ -189,7 +227,7 @@ onBeforeUnmount(() => {
       <div class="post__banner-bg" />
       <div class="post__banner-grid" aria-hidden="true" />
       <div class="post__banner-overlay" />
-      <div class="container post__banner-inner">
+      <div class="container post__banner-inner" v-reveal>
         <RouterLink to="/articles" class="post__back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="m12 19-7-7 7-7" />
@@ -212,13 +250,44 @@ onBeforeUnmount(() => {
           <span>{{ formattedDate }}</span>
         </div>
       </div>
+
+      <!-- 文章顶部波浪效果（复刻 burgess-t.cn gentle-wave） -->
+      <section class="main-hero-waves-area waves-area post-waves" aria-hidden="true">
+        <svg class="waves-svg" preserveAspectRatio="none" shape-rendering="auto" viewBox="0 24 150 28" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <path id="gentle-wave-post" d="M -160 44 c 30 0 58 -18 88 -18 s 58 18 88 18 s 58 -18 88 -18 s 58 18 88 18 v 44 h -352 Z" />
+          </defs>
+          <g class="parallax">
+            <g transform="translate(48, 0)">
+              <use href="#gentle-wave-post" opacity="0.5">
+                <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="7s" begin="-2s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+              </use>
+            </g>
+            <g transform="translate(48, 3)">
+              <use href="#gentle-wave-post" opacity="0.6">
+                <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="10s" begin="-3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+              </use>
+            </g>
+            <g transform="translate(48, 5)">
+              <use href="#gentle-wave-post" opacity="0.7">
+                <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="13s" begin="-4s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+              </use>
+            </g>
+            <g transform="translate(48, 7)">
+              <use href="#gentle-wave-post">
+                <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="20s" begin="-5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+              </use>
+            </g>
+          </g>
+        </svg>
+      </section>
     </header>
 
     <!-- 正文 + 侧边栏 -->
     <div class="container post__layout">
       <div ref="articleRef" class="post__main">
         <!-- 摘要框 -->
-        <div class="post__summary">
+        <div class="post__summary" v-reveal>
           <svg class="post__summary-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -231,7 +300,7 @@ onBeforeUnmount(() => {
         <div class="article-content" v-html="post.content" />
 
         <!-- 底部互动 -->
-        <div class="post__actions">
+        <div class="post__actions" v-reveal>
           <button
             class="like-btn"
             :class="{ 'like-btn--active': liked }"
@@ -254,7 +323,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <aside class="post__sidebar">
+      <aside class="post__sidebar" v-reveal>
         <div v-if="tocItems.length > 0" class="post__toc">
           <p class="toc__title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -348,6 +417,7 @@ onBeforeUnmount(() => {
 
 .post__banner-inner {
   position: relative;
+  z-index: 6;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -443,7 +513,20 @@ onBeforeUnmount(() => {
   opacity: 0.5;
 }
 
-/* ── 布局 ── */
+/* ── 文章顶部波浪（复刻 burgess-t.cn gentle-wave） ── */
+/* 单个 path 复用 4 层 <use>，fill 用页面底色，靠透明度叠出层次；运动由内联 SMIL <animateTransform> 驱动 */
+.main-hero-waves-area {
+  width: 100%;
+  position: absolute;
+  left: 0;
+  bottom: -11px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.post-waves .parallax use {
+  fill: var(--color-bg);
+}
 .post__layout {
   display: flex;
   gap: 40px;
@@ -463,6 +546,18 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  position: sticky;
+  top: calc(var(--header-height) + 20px);
+  align-self: flex-start;
+  max-height: calc(100vh - var(--header-height) - 40px);
+  overflow-y: auto;
+
+  /* 隐藏滚动条但保留功能 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.post__sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── 摘要框 ── */
@@ -498,11 +593,6 @@ onBeforeUnmount(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 22px;
-  position: sticky;
-  top: calc(var(--header-height) + 24px);
-  max-height: calc(100vh - var(--header-height) - 48px);
-  overflow-y: auto;
-  box-shadow: var(--shadow-sm);
 }
 
 .toc__title {
@@ -637,6 +727,17 @@ onBeforeUnmount(() => {
   font-size: 1rem;
 }
 
+.post__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
 /* ── 响应式 ── */
 @media (max-width: 1024px) {
   .post__sidebar {
@@ -647,6 +748,11 @@ onBeforeUnmount(() => {
 @media (max-width: 640px) {
   .post__banner {
     min-height: 280px;
+  }
+
+  /* 移动端隐藏波浪（与参考站一致） */
+  .main-hero-waves-area {
+    display: none;
   }
 
   .post__layout {

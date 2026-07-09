@@ -1,16 +1,22 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterView } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import AppNavbar from '@/components/AppNavbar.vue'
 import AppFooter from '@/components/AppFooter.vue'
 
 const themeStore = useThemeStore()
+const route = useRoute()
 
 const showTop = ref(false)
+const scrollProgress = ref(0)
+// 文章页已有独立的阅读进度条，避免两条顶栏重复（跟随路由实时更新）
+const isPostPage = computed(() => route.name === 'post')
 
 function handleScroll() {
   showTop.value = window.scrollY > 300
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight
+  scrollProgress.value = docHeight > 0 ? Math.min(1, Math.max(0, window.scrollY / docHeight)) : 0
 }
 
 function scrollToTop() {
@@ -30,6 +36,12 @@ onBeforeUnmount(() => {
 
 <template>
   <AppNavbar />
+  <div
+    v-if="!isPostPage"
+    class="scroll-progress"
+    :style="{ transform: `scaleX(${scrollProgress})` }"
+    aria-hidden="true"
+  />
   <main class="app-main">
     <RouterView v-slot="{ Component }">
       <Transition name="fade-page" mode="out-in">

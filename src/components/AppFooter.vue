@@ -1,8 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { author } from '@/data/posts'
+import { onMounted, ref } from 'vue'
+import type { Author } from '@/types/blog'
+import { getAuthor } from '@/api/author'
 
 const year = ref(new Date().getFullYear())
+
+// 占位值，接口返回前模板不会报错
+const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
+
+onMounted(async () => {
+  try {
+    author.value = await getAuthor()
+  } catch (e) {
+    console.error('获取作者信息失败:', e)
+  }
+})
 
 function scrollTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -17,6 +29,37 @@ const socialIcons: Record<string, string> = {
 
 <template>
   <footer class="footer">
+    <!-- 顶部海浪过渡（衔接正文区与页脚，复刻参考站 gentle-wave 风格） -->
+    <section class="footer-waves waves-area" aria-hidden="true">
+      <svg class="waves-svg" preserveAspectRatio="none" shape-rendering="auto" viewBox="0 24 150 28" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <path id="gentle-wave-footer" d="M -160 44 c 30 0 58 -18 88 -18 s 58 18 88 18 s 58 -18 88 -18 s 58 18 88 18 v 44 h -352 Z" />
+        </defs>
+        <g class="parallax">
+          <g transform="translate(48, 0)">
+            <use href="#gentle-wave-footer" opacity="0.5">
+              <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="7s" begin="-2s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+            </use>
+          </g>
+          <g transform="translate(48, 3)">
+            <use href="#gentle-wave-footer" opacity="0.6">
+              <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="10s" begin="-3s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+            </use>
+          </g>
+          <g transform="translate(48, 5)">
+            <use href="#gentle-wave-footer" opacity="0.7">
+              <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="13s" begin="-4s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+            </use>
+          </g>
+          <g transform="translate(48, 7)">
+            <use href="#gentle-wave-footer">
+              <animateTransform attributeName="transform" attributeType="XML" type="translate" from="-90 0" to="85 0" dur="20s" begin="-5s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines="0.55 0.5 0.45 0.5" />
+            </use>
+          </g>
+        </g>
+      </svg>
+    </section>
+
     <div class="container footer__inner">
       <div class="footer__left">
         <div class="footer__brand-row">
@@ -66,10 +109,27 @@ const socialIcons: Record<string, string> = {
 <style scoped>
 .footer {
   margin-top: var(--section-gap);
-  padding-top: 56px;
-  border-top: 1px solid var(--color-border);
+  padding-top: 0;
   background: var(--color-bg-soft);
   position: relative;
+}
+
+/* ── 顶部海浪（复刻参考站 gentle-wave） ── */
+.footer-waves {
+  position: relative;
+  height: 90px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+/* 让波浪铺满容器高度（覆盖全局 .waves-svg 的 60px 限制） */
+.footer-waves .waves-svg {
+  height: 100%;
+}
+
+/* 填充色用页脚底色，营造"页脚色吞噬正文"的优雅过渡（与 hero 一致） */
+.footer-waves .parallax use {
+  fill: var(--color-bg-soft);
 }
 
 .footer::before {
@@ -90,6 +150,7 @@ const socialIcons: Record<string, string> = {
   align-items: flex-start;
   gap: 40px;
   flex-wrap: wrap;
+  padding-top: 48px;
   padding-bottom: 36px;
 }
 
@@ -198,6 +259,10 @@ const socialIcons: Record<string, string> = {
 }
 
 @media (max-width: 640px) {
+  .footer-waves {
+    display: none;
+  }
+
   .footer__inner {
     flex-direction: column;
   }
@@ -207,8 +272,7 @@ const socialIcons: Record<string, string> = {
   }
 
   .footer__socials,
-  .footer__top {
-    justify-content: flex-start;
+  .footer__top {    justify-content: flex-start;
     align-self: flex-start;
   }
 }

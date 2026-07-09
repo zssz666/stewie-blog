@@ -1,4 +1,5 @@
 @import './base.css';
+@import './animations.css';
 
 #app {
   min-height: 100vh;
@@ -110,25 +111,29 @@ a:hover {
 }
 
 /* ============================================================
-   路由过渡
+   路由过渡（页面切换）
+   仅使用 opacity + translateY，避免缩放导致的文字模糊，移动端流畅
    ============================================================ */
 .fade-page-enter-active {
   transition:
-    opacity 0.25s var(--ease),
-    transform 0.25s var(--ease);
+    opacity 0.42s var(--ease-out),
+    transform 0.42s var(--ease-out);
 }
 
 .fade-page-leave-active {
-  transition: opacity 0.12s ease;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease;
 }
 
 .fade-page-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(18px);
 }
 
 .fade-page-leave-to {
   opacity: 0;
+  transform: translateY(-12px);
 }
 
 /* ============================================================

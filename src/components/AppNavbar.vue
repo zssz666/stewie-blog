@@ -1,19 +1,35 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
+import { useUiStore } from '@/stores/ui'
 import IconSun from './icons/IconSun.vue'
 import IconMoon from './icons/IconMoon.vue'
 import IconMenu from './icons/IconMenu.vue'
 import IconClose from './icons/IconClose.vue'
 
 const themeStore = useThemeStore()
+const uiStore = useUiStore()
 const route = useRoute()
 
 const scrolled = ref(false)
 const menuOpen = ref(false)
+const showTitle = ref(false) // 滚动后由导航链接切换为展示页面标题
+let lastScrollY = 0
 
 const isHome = computed(() => route.path === '/')
+
+// 各页面滚动后展示的标题（文章详情页用 store 中的文章标题）
+const pageTitleMap: Record<string, string> = {
+  '/': 'Stewie 的博客',
+  '/articles': '全部文章',
+  '/about': '关于我',
+}
+
+const currentTitle = computed(() => {
+  if (route.name === 'post') return uiStore.postTitle || '文章详情'
+  return pageTitleMap[route.path] ?? ''
+})
 
 const navClass = computed(() => ({
   'navbar--home': isHome.value,
@@ -27,12 +43,25 @@ const navLinks = [
 ]
 
 function handleScroll() {
-  scrolled.value = window.scrollY > 50
+  const currentY = window.scrollY
+  scrolled.value = currentY > 50
+  // 滚动后由三个导航链接切换为展示页面标题（文章页显示文章标题，其它页显示对应网页标题）
+  showTitle.value = scrolled.value && currentTitle.value !== ''
 }
 
 function closeMenu() {
   menuOpen.value = false
 }
+
+// 路由切换时重置（scrollBehavior 已回到顶部），避免残留「标题态」
+watch(
+  () => route.fullPath,
+  () => {
+    scrolled.value = false
+    showTitle.value = false
+    lastScrollY = 0
+  },
+)
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
@@ -52,7 +81,17 @@ onBeforeUnmount(() => {
         <span class="navbar__name">Stewie</span>
       </RouterLink>
 
-      <nav class="navbar__nav">
+      <Transition name="nav-title">
+        <span
+          v-if="showTitle"
+          :key="currentTitle"
+          class="navbar__title"
+        >
+          {{ currentTitle }}
+        </span>
+      </Transition>
+
+      <nav class="navbar__nav" :class="{ 'navbar__nav--hidden': showTitle }">
         <RouterLink
           v-for="link in navLinks"
           :key="link.to"
@@ -151,6 +190,7 @@ onBeforeUnmount(() => {
 }
 
 .navbar__inner {
+  position: relative;
   height: 100%;
   display: flex;
   align-items: center;
@@ -163,9 +203,10 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   color: var(--color-heading);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-nav);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.01em;
   transition: color var(--transition-fast);
 }
 
@@ -187,19 +228,69 @@ onBeforeUnmount(() => {
   transform: rotate(-8deg) scale(1.05);
 }
 
+/* 导航链接组：绝对居中，保证文字始终位于导航栏正中 */
 .navbar__nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
+  gap: 6px;
+  transition:
+    opacity 0.25s var(--ease),
+    transform 0.25s var(--ease);
+}
+
+/* 吸顶标题显示时隐藏中间导航 */
+.navbar__nav--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+}
+
+/* 滚动后展示的页面标题：同样绝对居中 */
+.navbar__title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 56vw;
+  font-family: var(--font-nav);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 首页透明态：白色标题 */
+.navbar--home:not(.navbar--scrolled) .navbar__title {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* 标题进出动画（保持水平居中） */
+.nav-title-enter-active,
+.nav-title-leave-active {
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+
+.nav-title-enter-from,
+.nav-title-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
 }
 
 .navbar__link {
   position: relative;
   padding: 8px 16px;
   color: var(--color-text-secondary);
+  font-family: var(--font-nav);
   font-weight: 500;
-  font-size: 14.5px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast);
 }
@@ -336,8 +427,10 @@ onBeforeUnmount(() => {
 .navbar__drawer-link {
   padding: 13px 16px;
   color: var(--color-text);
+  font-family: var(--font-nav);
   font-weight: 500;
   font-size: 15px;
+  letter-spacing: 0.04em;
   border-radius: var(--radius-sm);
   transition:
     background-color var(--transition-fast),

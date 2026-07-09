@@ -1,46 +1,38 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { author } from '@/data/posts'
-import type { Post } from '@/types/blog'
-import { getPosts } from '@/api/post'
+import { onMounted, ref } from 'vue'
+import type { Author, Post } from '@/types/blog'
+import { getPosts, getCategories, getTags } from '@/api/post'
+import { getAuthor } from '@/api/author'
 import PostCard from '@/components/PostCard.vue'
 import CategoryFilter from '@/components/CategoryFilter.vue'
+import Pagination from '@/components/Pagination.vue'
 import PopularPosts from '@/components/PopularPosts.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
-import { useInView } from '@/composables/useInView'
 import { useSeo } from '@/composables/useSeo'
 
 useSeo({
   title: '全部文章',
-  description: 'Stewie 的前端开发文章合集。Vue 3 踩坑、TypeScript 类型技巧、Vite 配置、Pinia 实战，按标签筛选浏览。',
+  description: 'Stewie 的前端开发文章合集。Vue 3 踩坑、TypeScript 类型技巧、Vite 配置、Pinia 实战，按分类与标签筛选浏览。',
   path: '/articles',
 })
 
+// 每页条数：当前种子数据较少，设为 4 以便直观演示分页效果（可按需调大）
+const PAGE_SIZE = 4
+
 const posts = ref<Post[]>([])
+const total = ref(0)
+const pages = ref(1)
+const page = ref(1)
+const loading = ref(false)
 
-onMounted(async () => {
-  try {
-    posts.value = await getPosts()
-  } catch (e) {
-    console.error('获取文章失败:', e)
-  }
-})
-
+// 筛选维度（"全部" 表示不过滤，向后端传 undefined）
+const categories = ref<string[]>(['全部'])
+const tags = ref<string[]>(['全部'])
+const activeCategory = ref('全部')
 const activeTag = ref('全部')
 
-const tags = computed(() => {
-  const set = new Set(posts.value.map((p) => p.tag))
-  return ['全部', ...set]
-})
-
-const filteredPosts = computed(() =>
-  activeTag.value === '全部'
-    ? posts.value
-    : posts.value.filter((p) => p.tag === activeTag.value),
-)
-
-const listRef = ref<HTMLElement | null>(null)
-const { isInView } = useInView(listRef, 0.05)
+// 占位值，接口返回前模板不会报错
+const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
 
 const techStack = [
   { name: 'Vue 3', color: '#42b883' },
@@ -51,7 +43,63 @@ const techStack = [
   { name: 'Java', color: '#ed8b00' },
 ]
 
-const totalCount = computed(() => filteredPosts.value.length)
+/** 根据当前筛选 + 页码向后端拉取数据 */
+async function load() {
+  loading.value = true
+  try {
+    const res = await getPosts({
+      page: page.value,
+      size: PAGE_SIZE,
+      category: activeCategory.value === '全部' ? undefined : activeCategory.value,
+      tag: activeTag.value === '全部' ? undefined : activeTag.value,
+    })
+    posts.value = res.list
+    total.value = res.total
+    pages.value = res.pages ?? 1
+    page.value = res.page
+  } catch (e) {
+    console.error('获取文章失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+function onCategoryChange(c: string) {
+  activeCategory.value = c
+  page.value = 1
+  load()
+}
+
+function onTagChange(t: string) {
+  activeTag.value = t
+  page.value = 1
+  load()
+}
+
+function onPageChange(p: number) {
+  page.value = p
+  load()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+onMounted(async () => {
+  // 并行拉取全量分类 / 标签，用于渲染筛选条
+  try {
+    const [cats, tgs] = await Promise.all([getCategories(), getTags()])
+    categories.value = ['全部', ...cats.map((c) => c.name)]
+    tags.value = ['全部', ...tgs.map((t) => t.name)]
+  } catch (e) {
+    console.error('加载筛选维度失败:', e)
+  }
+
+  await load()
+
+  try {
+    author.value = await getAuthor()
+  } catch (e) {
+    console.error('获取作者信息失败:', e)
+  }
+})
 </script>
 
 <template>
@@ -60,21 +108,21 @@ const totalCount = computed(() => filteredPosts.value.length)
     <section class="welcome">
       <div class="welcome__decor" aria-hidden="true" />
       <div class="container welcome__inner">
-        <div class="welcome__left">
+        <div class="welcome__left" v-reveal>
           <div class="welcome__avatar">{{ author.name.charAt(0) }}</div>
           <div class="welcome__intro">
-            <span class="welcome__eyebrow">BLOG</span>
             <h1 class="welcome__title">你好呀~ 我是{{ author.name }}</h1>
             <p class="welcome__desc">{{ author.bio }}</p>
           </div>
         </div>
-        <div class="welcome__right">
+        <div class="welcome__right" v-reveal="120">
           <div class="welcome__tech">
             <span
               v-for="tech in techStack"
               :key="tech.name"
               class="welcome__tech-item"
               :style="{ '--tech-color': tech.color }"
+              v-reveal.zoom="techStack.indexOf(tech) * 60"
             >
               {{ tech.name }}
             </span>
@@ -86,37 +134,57 @@ const totalCount = computed(() => filteredPosts.value.length)
     <!-- ── 内容区 ── -->
     <section class="container articles__content">
       <div class="articles__main">
-        <div class="articles__bar">
-          <CategoryFilter
-            :categories="tags"
-            :active="activeTag"
-            @select="activeTag = $event"
-          />
-          <span class="articles__count">{{ totalCount }} 篇文章</span>
+        <!-- 筛选区：分类 + 标签 -->
+        <div class="articles__filters" v-reveal>
+          <div class="articles__filter-row">
+            <span class="articles__filter-label">分类</span>
+            <CategoryFilter
+              :categories="categories"
+              :active="activeCategory"
+              @select="onCategoryChange"
+            />
+          </div>
+          <div class="articles__filter-row">
+            <span class="articles__filter-label">标签</span>
+            <CategoryFilter
+              :categories="tags"
+              :active="activeTag"
+              @select="onTagChange"
+            />
+          </div>
+          <span class="articles__count">共 {{ total }} 篇文章</span>
         </div>
 
-        <div
-          ref="listRef"
+        <TransitionGroup
+          name="list"
+          tag="div"
           class="articles__list"
-          :class="{ 'is-visible': isInView }"
+          :class="{ 'articles__list--loading': loading }"
+          appear
         >
           <div
-            v-for="(post, index) in filteredPosts"
+            v-for="post in posts"
             :key="post.id"
             class="articles__item"
-            :style="{ '--delay': `${index * 70}ms` }"
           >
             <PostCard :post="post" />
           </div>
-        </div>
+        </TransitionGroup>
 
-        <div v-if="filteredPosts.length === 0" class="articles__empty">
+        <Pagination
+          :page="page"
+          :pages="pages"
+          :total="total"
+          @change="onPageChange"
+        />
+
+        <div v-if="posts.length === 0" class="articles__empty">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="9" y1="15" x2="15" y2="15" />
           </svg>
-          <p>该标签下暂无文章</p>
+          <p>该筛选条件下暂无文章</p>
         </div>
       </div>
 
@@ -181,15 +249,6 @@ const totalCount = computed(() => filteredPosts.value.length)
   border: 3px solid var(--color-surface);
 }
 
-.welcome__eyebrow {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-primary);
-  letter-spacing: 0.2em;
-  margin-bottom: 6px;
-}
-
 .welcome__title {
   font-size: clamp(1.4rem, 3.2vw, 1.8rem);
   font-weight: 800;
@@ -250,16 +309,32 @@ const totalCount = computed(() => filteredPosts.value.length)
   min-width: 0;
 }
 
-.articles__bar {
+/* ── 筛选区 ── */
+.articles__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.articles__filter-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
+.articles__filter-label {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
 .articles__count {
+  align-self: flex-end;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-tertiary);
@@ -280,26 +355,16 @@ const totalCount = computed(() => filteredPosts.value.length)
 }
 
 .articles__list {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 22px;
+  transition: opacity var(--transition-fast);
 }
 
-.articles__item {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-.articles__list.is-visible .articles__item {
-  animation: card-enter 0.45s var(--ease) forwards;
-  animation-delay: var(--delay, 0ms);
-}
-
-@keyframes card-enter {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.articles__list--loading {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .articles__empty {
@@ -352,24 +417,22 @@ const totalCount = computed(() => filteredPosts.value.length)
     flex-direction: column;
   }
 
-  .articles__bar {
-    flex-direction: column;
+  .articles__filter-row {
     align-items: flex-start;
+  }
+
+  .articles__filter-label {
+    width: auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .articles__item {
-    opacity: 1;
-    transform: none;
-  }
-
-  .articles__list.is-visible .articles__item {
-    animation: none;
-  }
-
   .welcome__tech-item:hover {
     transform: none;
+  }
+
+  .articles__list {
+    transition: none;
   }
 }
 </style>
