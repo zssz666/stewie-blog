@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import type { Author, Post } from '@/types/blog'
+import type { Author, Post, Comment } from '@/types/blog'
 import { getPostBySlug } from '@/api/post'
 import { getAuthor } from '@/api/author'
+import {
+  getLikeStatus,
+  likePost,
+  getComments,
+  createComment,
+} from '@/api/interaction'
 import { useUiStore } from '@/stores/ui'
 import PopularPosts from '@/components/PopularPosts.vue'
 
@@ -155,13 +161,106 @@ function enhanceCodeBlocks() {
   })
 }
 
-/* ── 点赞 ── */
+/* ── 点赞（真实接口，指纹去重） ── */
 const liked = ref(false)
 const likeCount = ref(0)
 
-function toggleLike() {
-  liked.value = !liked.value
-  likeCount.value += liked.value ? 1 : -1
+async function loadLikeStatus() {
+  if (!post.value) return
+  try {
+    const res = await getLikeStatus(post.value.id)
+    liked.value = res.liked
+    likeCount.value = res.likes
+  } catch (e) {
+    console.error('获取点赞状态失败:', e)
+  }
+}
+
+async function toggleLike() {
+  // 已赞则幂等，不再发请求（防重复点赞）
+  if (!post.value || liked.value) return
+  try {
+    const res = await likePost(post.value.id)
+    liked.value = res.liked
+    likeCount.value = res.likes
+  } catch (e) {
+    console.error('点赞失败:', e)
+  }
+}
+
+/* ── 评论（真实接口） ── */
+const comments = ref<Comment[]>([])
+const commentCount = computed(() => {
+  let n = 0
+  const walk = (list: Comment[]) =>
+    list.forEach((c) => {
+      n += 1
+      if (c.replies?.length) walk(c.replies)
+    })
+  walk(comments.value)
+  return n
+})
+
+async function loadComments() {
+  if (!post.value) return
+  try {
+    comments.value = await getComments(post.value.id)
+  } catch (e) {
+    console.error('获取评论失败:', e)
+    comments.value = []
+  }
+}
+
+const commentForm = reactive({
+  nickname: '',
+  email: '',
+  content: '',
+})
+const replyingTo = ref<{ id: number; nickname: string } | null>(null)
+const commentSubmitting = ref(false)
+const commentNotice = ref('')
+
+function startReply(comment: Comment) {
+  replyingTo.value = { id: comment.id, nickname: comment.nickname }
+  nextTick(() =>
+    document.getElementById('comment-form')?.scrollIntoView({ behavior: 'smooth' }),
+  )
+}
+
+function cancelReply() {
+  replyingTo.value = null
+}
+
+async function submitComment() {
+  if (!post.value) return
+  const nickname = commentForm.nickname.trim()
+  const content = commentForm.content.trim()
+  if (!nickname || !content) {
+    commentNotice.value = '昵称和评论内容不能为空'
+    return
+  }
+  commentSubmitting.value = true
+  commentNotice.value = ''
+  try {
+    await createComment(post.value.id, {
+      nickname,
+      email: commentForm.email.trim() || undefined,
+      content,
+      parentId: replyingTo.value?.id ?? null,
+    })
+    commentForm.content = ''
+    replyingTo.value = null
+    commentNotice.value = '评论已提交，审核通过后将公开展示，感谢你的参与！'
+  } catch (e) {
+    commentNotice.value = '提交失败，请稍后重试'
+    console.error('提交评论失败:', e)
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+function scrollToComments() {
+  document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 /* ── 滚动监听 ── */
@@ -177,8 +276,16 @@ async function loadPost() {
     const data = await getPostBySlug(slug.value)
     post.value = data
     liked.value = false
-    // 用真实点赞数初始化（后端暂无独立点赞接口，前端仅做本地乐观切换）
     likeCount.value = data.likes ?? 0
+    // 重置互动区（切换文章时）
+    comments.value = []
+    commentForm.nickname = ''
+    commentForm.email = ''
+    commentForm.content = ''
+    replyingTo.value = null
+    commentNotice.value = ''
+    // 并行加载点赞状态与评论树
+    await Promise.all([loadLikeStatus(), loadComments()])
     uiStore.setPostTitle(data.title) // 供导航栏吸顶显示
     nextTick(() => {
       buildToc()
@@ -216,15 +323,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="post__loading">加载中…</div>
-
-  <article v-else-if="post" class="post">
+  <article class="post">
     <!-- 阅读进度条 -->
     <div class="reading-progress" :style="{ transform: `scaleX(${progress})` }" />
 
     <!-- 顶部 banner -->
     <header ref="bannerRef" class="post__banner">
       <div class="post__banner-bg" />
+      <img
+        v-if="post?.cover"
+        :src="post.cover"
+        :alt="post.title"
+        class="post__banner-cover"
+      />
       <div class="post__banner-grid" aria-hidden="true" />
       <div class="post__banner-overlay" />
       <div class="container post__banner-inner" v-reveal>
@@ -235,20 +346,24 @@ onBeforeUnmount(() => {
           </svg>
           返回文章列表
         </RouterLink>
-        <span class="post__tag">{{ post.tag }}</span>
-        <h1 class="post__title">{{ post.title }}</h1>
-        <div class="post__meta">
-          <span class="post__author">
-            <span class="post__author-avatar">{{ author.name.charAt(0) }}</span>
-            {{ author.name }}
-          </span>
-          <span class="post__dot" />
-          <span>{{ formattedViews }} 阅读</span>
-          <span class="post__dot" />
-          <span>{{ post.readingTime }} 分钟</span>
-          <span class="post__dot" />
-          <span>{{ formattedDate }}</span>
-        </div>
+        <p v-if="loading" class="post__loading-inline">加载中…</p>
+        <template v-else-if="post">
+          <span class="post__tag">{{ post?.tag }}</span>
+          <h1 class="post__title">{{ post?.title }}</h1>
+          <div class="post__meta">
+            <span class="post__author">
+              <span class="post__author-avatar">{{ author.name.charAt(0) }}</span>
+              {{ author.name }}
+            </span>
+            <span class="post__dot" />
+            <span>{{ formattedViews }} 阅读</span>
+            <span class="post__dot" />
+            <span>{{ post?.readingTime }} 分钟</span>
+            <span class="post__dot" />
+            <span>{{ formattedDate }}</span>
+          </div>
+        </template>
+        <p v-else class="post__missing-inline">文章不存在或已被移除</p>
       </div>
 
       <!-- 文章顶部波浪效果（复刻 burgess-t.cn gentle-wave） -->
@@ -284,7 +399,7 @@ onBeforeUnmount(() => {
     </header>
 
     <!-- 正文 + 侧边栏 -->
-    <div class="container post__layout">
+    <div class="container post__layout" v-if="post && !loading">
       <div ref="articleRef" class="post__main">
         <!-- 摘要框 -->
         <div class="post__summary" v-reveal>
@@ -294,10 +409,10 @@ onBeforeUnmount(() => {
             <line x1="9" y1="13" x2="15" y2="13" />
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
-          <p>{{ post.excerpt }}</p>
+          <p>{{ post?.excerpt }}</p>
         </div>
 
-        <div class="article-content" v-html="post.content" />
+        <div class="article-content" v-html="post?.content" />
 
         <!-- 底部互动 -->
         <div class="post__actions" v-reveal>
@@ -305,6 +420,7 @@ onBeforeUnmount(() => {
             class="like-btn"
             :class="{ 'like-btn--active': liked }"
             type="button"
+            :disabled="liked"
             @click="toggleLike"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" :fill="liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -314,13 +430,85 @@ onBeforeUnmount(() => {
             <span>{{ likeCount }}</span>
             <span class="like-btn__label">{{ liked ? '已赞' : '点赞' }}</span>
           </button>
-          <RouterLink to="/articles" class="comment-link">
+          <button class="comment-link" type="button" @click="scrollToComments">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            <span>评论</span>
-          </RouterLink>
+            <span>评论 {{ commentCount }}</span>
+          </button>
         </div>
+
+        <!-- 评论区（阶段 5） -->
+        <section id="comments" class="comments" v-reveal>
+          <h2 class="comments__title">
+            评论 <span class="comments__count">{{ commentCount }}</span>
+          </h2>
+
+          <ul v-if="comments.length" class="comments__list">
+            <li v-for="c in comments" :key="c.id" class="comment">
+              <div class="comment__avatar">{{ c.nickname.charAt(0) }}</div>
+              <div class="comment__body">
+                <div class="comment__meta">
+                  <span class="comment__nick">{{ c.nickname }}</span>
+                  <span class="comment__date">{{ c.createdAt }}</span>
+                </div>
+                <p class="comment__content">{{ c.content }}</p>
+                <button class="comment__reply" type="button" @click="startReply(c)">回复</button>
+
+                <ul v-if="c.replies && c.replies.length" class="comments__list comments__list--reply">
+                  <li v-for="r in c.replies" :key="r.id" class="comment comment--reply">
+                    <div class="comment__avatar comment__avatar--sm">{{ r.nickname.charAt(0) }}</div>
+                    <div class="comment__body">
+                      <div class="comment__meta">
+                        <span class="comment__nick">{{ r.nickname }}</span>
+                        <span class="comment__date">{{ r.createdAt }}</span>
+                      </div>
+                      <p class="comment__content">{{ r.content }}</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="comments__empty">还没有评论，来抢沙发吧～</p>
+
+          <!-- 评论表单 -->
+          <form id="comment-form" class="comment-form" @submit.prevent="submitComment">
+            <p v-if="replyingTo" class="comment-form__reply">
+              回复 <strong>@{{ replyingTo.nickname }}</strong>
+              <button type="button" class="comment-form__cancel" @click="cancelReply">取消</button>
+            </p>
+            <div class="comment-form__row">
+              <input
+                v-model="commentForm.nickname"
+                class="comment-form__input"
+                type="text"
+                placeholder="昵称（必填）"
+                maxlength="50"
+              />
+              <input
+                v-model="commentForm.email"
+                class="comment-form__input"
+                type="email"
+                placeholder="邮箱（选填，不公开）"
+                maxlength="100"
+              />
+            </div>
+            <textarea
+              v-model="commentForm.content"
+              class="comment-form__textarea"
+              placeholder="写下你的评论…"
+              maxlength="500"
+              rows="4"
+            />
+            <div class="comment-form__footer">
+              <span v-if="commentNotice" class="comment-form__notice">{{ commentNotice }}</span>
+              <button type="submit" class="comment-form__submit" :disabled="commentSubmitting">
+                {{ commentSubmitting ? '提交中…' : '发表评论' }}
+              </button>
+            </div>
+          </form>
+        </section>
       </div>
 
       <aside class="post__sidebar" v-reveal>
@@ -355,12 +543,6 @@ onBeforeUnmount(() => {
       </aside>
     </div>
   </article>
-
-  <div v-else class="container post__missing">
-    <h1 class="post__missing-title">404</h1>
-    <p class="post__missing-text">这篇文章不存在或已被移除。</p>
-    <RouterLink to="/" class="btn btn-primary">回到首页</RouterLink>
-  </div>
 </template>
 
 <style scoped>
@@ -395,6 +577,17 @@ onBeforeUnmount(() => {
   height: 140%;
   background: linear-gradient(135deg, var(--hero-dark-1), var(--hero-dark-2), var(--hero-dark-3));
   will-change: transform;
+  z-index: 0;
+}
+
+/* 文章封面大图（有封面时覆盖在渐变之上、网格与遮罩之下） */
+.post__banner-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
 }
 
 .post__banner-grid {
@@ -407,12 +600,14 @@ onBeforeUnmount(() => {
   mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   pointer-events: none;
+  z-index: 2;
 }
 
 .post__banner-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.5));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.55));
+  z-index: 3;
 }
 
 .post__banner-inner {
@@ -703,6 +898,233 @@ onBeforeUnmount(() => {
   opacity: 0.5;
 }
 
+/* ── 评论区（阶段 5） ── */
+.comments {
+  margin-top: 48px;
+  padding-top: 40px;
+  border-top: 1px solid var(--color-border);
+}
+
+.comments__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-heading);
+  letter-spacing: -0.02em;
+  margin-bottom: 28px;
+}
+
+.comments__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-full);
+}
+
+.comments__list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-bottom: 36px;
+}
+
+.comments__list--reply {
+  margin: 16px 0 0 0;
+  padding-left: 18px;
+  border-left: 2px solid var(--color-border);
+  gap: 14px;
+}
+
+.comment {
+  display: flex;
+  gap: 14px;
+}
+
+.comment__avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border-radius: 50%;
+}
+
+.comment__avatar--sm {
+  width: 34px;
+  height: 34px;
+  font-size: 14px;
+}
+
+.comment__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.comment__nick {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.comment__date {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.comment__content {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--color-text-secondary);
+  word-break: break-word;
+}
+
+.comment__reply {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.comment__reply:hover {
+  opacity: 0.7;
+}
+
+.comments__empty {
+  margin-bottom: 32px;
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+}
+
+/* 评论表单 */
+.comment-form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+}
+
+.comment-form__reply {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.comment-form__cancel {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.comment-form__cancel:hover {
+  color: var(--color-primary);
+}
+
+.comment-form__row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.comment-form__input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.comment-form__input:focus {
+  border-color: var(--color-primary);
+}
+
+.comment-form__textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.comment-form__textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.comment-form__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.comment-form__notice {
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--color-primary);
+}
+
+.comment-form__submit {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.comment-form__submit:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.comment-form__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── 404 ── */
 .post__missing {
   display: flex;
@@ -735,6 +1157,15 @@ onBeforeUnmount(() => {
   font-size: 15px;
   font-weight: 500;
   color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+/* 文章页 banner 内联占位（loading/404），不依赖接口，进页即显示波浪 */
+.post__loading-inline,
+.post__missing-inline {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  font-weight: 500;
   letter-spacing: 0.04em;
 }
 

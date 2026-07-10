@@ -9,6 +9,24 @@ import PostCard from '@/components/PostCard.vue'
 
 useSeo() // 首页默认 SEO
 
+/* ── 首屏入场动画控制：仅首次访问播放，之后同会话不再重播 ── */
+const introPlayed = ref(false)
+if (typeof window !== 'undefined') {
+  if (window.sessionStorage.getItem('home_intro_played')) {
+    introPlayed.value = true
+  } else {
+    // 首次访问：打标记，后续同会话内访问不再重播入场动画
+    window.sessionStorage.setItem('home_intro_played', '1')
+  }
+}
+
+/* 背景图「模糊 → 清晰」入场：预加载完成后触发，避免先闪清晰图再突变 */
+const revealingHero = ref(false)
+const heroRevealDone = ref(false)
+function onHeroRevealEnd() {
+  heroRevealDone.value = true
+}
+
 /* ── 滚动视差（图片层随滚动缓慢上移） + 鼠标视差（内容层） ── */
 const heroRef = ref<HTMLElement | null>(null)
 const imgRef = ref<HTMLElement | null>(null)
@@ -80,21 +98,47 @@ onMounted(async () => {
     maxRadius: 2.8,
     color: '255, 245, 220',
   })
+
+  // 首屏背景图「模糊 → 清晰」入场：仅首次访问 + 非 reduced-motion 时播放。
+  // 先预加载图片，加载完成（或兜底超时）后再触发，避免先闪清晰图再突变。
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (!introPlayed.value && !reduceMotion) {
+    const pre = new Image()
+    let triggered = false
+    const trigger = () => {
+      if (triggered) return
+      triggered = true
+      revealingHero.value = true
+    }
+    pre.onload = trigger
+    pre.onerror = trigger
+    pre.src = '/images/hero-bg.webp'
+    // 兜底：图片较慢时最多等 1.5s，避免背景一直隐藏
+    window.setTimeout(trigger, 1500)
+  }
 })
 
-const sortedPosts = computed(() =>
-  [...posts.value].sort((a, b) => b.date.localeCompare(a.date)),
-)
+const sortedPosts = computed(() => {
+  // 防御：部署环境若后端版本不一致导致 posts.value 非数组，避免白屏崩溃
+  const list = posts.value ?? []
+  return list.slice().sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+})
 
 const featuredPost = computed(() => sortedPosts.value[0])
 const restPosts = computed(() => sortedPosts.value.slice(1, 3))
 
 /* ── 打字机效果 ── */
-const titleText = '写代码踩过的坑,\n都记在这里了'
+const titleText = '记录开发中踩过的坑,分享学习和成长的点滴'
 const typedHtml = ref('')
 const typingDone = ref(false)
 
 onMounted(() => {
+  // 重访（同会话）：直接显示完整标题，不重播打字动画
+  if (introPlayed.value) {
+    typedHtml.value = titleText
+    typingDone.value = true
+    return
+  }
   let i = 0
   const type = () => {
     if (i >= titleText.length) {
@@ -110,7 +154,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="home">
+  <div class="home" :class="introPlayed ? 'home--static' : 'home--intro'">
     <!-- ═══════════ Hero 欢迎区（全屏背景图） ═══════════ -->
     <section
       class="hero"
@@ -118,13 +162,16 @@ onMounted(() => {
       @mousemove="onHeroMove"
       @mouseleave="onHeroLeave"
     >
-      <!-- 背景图层（Ken Burns 缩放 + 滚动视差） -->
+      <!-- 背景图层（模糊渐清晰入场 + 滚动视差） -->
       <div class="hero__bg" ref="imgRef">
         <img
-          src="/images/hero-bg.png"
+          src="/images/hero-bg.webp"
           alt=""
           class="hero__bg-img"
+          :class="{ 'is-revealing': revealingHero, 'is-done': heroRevealDone }"
+          fetchpriority="high"
           draggable="false"
+          @animationend="onHeroRevealEnd"
         />
         <!-- 多层渐变遮罩：保证文字可读 -->
         <div class="hero__overlay hero__overlay--top" />
@@ -156,7 +203,8 @@ onMounted(() => {
         </h1>
 
         <p class="hero-subtitle" v-reveal="240">
-          Vue 3 · TypeScript · 踩坑记录 · 不搞高深理论
+          Vue 3 · TypeScript · Springboot · Node.js<br />
+          记录开发中踩过的坑，分享学习和成长的点滴
         </p>
 
         <div class="hero__actions" v-reveal="360">
@@ -207,7 +255,7 @@ onMounted(() => {
           </RouterLink>
         </div>
 
-        <div v-if="featuredPost" v-reveal>
+        <div v-if="featuredPost" v-reveal="200">
           <PostCard
             :key="featuredPost.id"
             :post="featuredPost"
@@ -220,13 +268,13 @@ onMounted(() => {
             v-for="(post, index) in restPosts"
             :key="post.id"
             class="posts__cell"
-            v-reveal="index * 100"
+            v-reveal="360 + index * 140"
           >
             <PostCard :post="post" />
           </div>
         </div>
 
-        <div class="posts__cta" v-reveal>
+        <div class="posts__cta" v-reveal="640">
           <RouterLink to="/articles" class="btn btn-ghost btn-ripple">
             浏览全部文章
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -272,18 +320,42 @@ onMounted(() => {
   height: 100%;
   object-fit: cover;
   object-position: center 30%; /* 月亮在上方偏中 */
-  /* 入场动画：从稍大尺寸缓慢缩小到 1.08x */
-  animation: ken-burns-in 8s var(--ease-out) forwards;
+  /* 稳态：清晰。入场「模糊→清晰」仅首次访问时由 .is-revealing 触发 */
 }
 
-@keyframes ken-burns-in {
-  from {
-    transform: scale(1.18);
+/* 首次访问：背景图先隐藏，待预加载完成加 .is-revealing 后再模糊渐清晰 */
+.home--intro .hero__bg-img:not(.is-revealing) {
+  opacity: 0;
+}
+
+/* 背景图入场：从模糊 + 透明 + 微放大，逐渐清晰并归位（仅播放一次） */
+.hero__bg-img.is-revealing {
+  animation: hero-bg-reveal 1.5s var(--ease-out) both;
+  will-change: filter, opacity, transform;
+}
+
+/* 动画结束：释放 will-change，保留清晰稳态 */
+.hero__bg-img.is-revealing.is-done {
+  animation: none;
+  will-change: auto;
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+@keyframes hero-bg-reveal {
+  0% {
     opacity: 0;
+    filter: blur(22px);
+    transform: scale(1.16);
   }
-  to {
-    transform: scale(1);
+  55% {
     opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
   }
 }
 
@@ -703,6 +775,14 @@ onMounted(() => {
   margin-top: 48px;
 }
 
+/* ── 重访（同会话）：关闭首屏入场动画，直接显示，省性能且不重播 ── */
+.home--static .reveal {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+  will-change: auto;
+}
+
 /* ── 响应式 ── */
 @media (max-width: 640px) {
   .posts__grid {
@@ -719,6 +799,11 @@ onMounted(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* 减少动态效果：背景图不隐藏、不模糊，直接清晰显示 */
+  .home--intro .hero__bg-img:not(.is-revealing) {
+    opacity: 1;
+  }
+
   .hero__bg-img {
     animation: none;
   }
@@ -741,6 +826,13 @@ onMounted(() => {
 
   .hero__bg {
     transform: none !important;
+  }
+
+  /* 重访场景下同样不做入场动画 */
+  .home--static .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }
 </style>

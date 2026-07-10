@@ -53,10 +53,11 @@ async function load() {
       category: activeCategory.value === '全部' ? undefined : activeCategory.value,
       tag: activeTag.value === '全部' ? undefined : activeTag.value,
     })
-    posts.value = res.list
-    total.value = res.total
+    // 防御：后端版本不一致时 res.list 可能为 undefined，确保始终为数组
+    posts.value = res.list ?? []
+    total.value = res.total ?? 0
     pages.value = res.pages ?? 1
-    page.value = res.page
+    page.value = res.page ?? 1
   } catch (e) {
     console.error('获取文章失败:', e)
   } finally {
@@ -86,8 +87,9 @@ onMounted(async () => {
   // 并行拉取全量分类 / 标签，用于渲染筛选条
   try {
     const [cats, tgs] = await Promise.all([getCategories(), getTags()])
-    categories.value = ['全部', ...cats.map((c) => c.name)]
-    tags.value = ['全部', ...tgs.map((t) => t.name)]
+    // 防御：接口异常时保持默认筛选条，避免 .map 在 undefined 上崩溃
+    categories.value = ['全部', ...(cats?.map((c) => c.name) ?? [])]
+    tags.value = ['全部', ...(tgs?.map((t) => t.name) ?? [])]
   } catch (e) {
     console.error('加载筛选维度失败:', e)
   }

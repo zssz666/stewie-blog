@@ -26,6 +26,8 @@ const coverStyle = computed(() => {
   }
 })
 
+const hasCover = computed(() => !!props.post.cover)
+
 const tagIcon = computed(() => tagColors[props.post.tag]?.icon ?? '•')
 
 const formattedDate = computed(() =>
@@ -57,9 +59,16 @@ const magneticStyle = computed(() => ({
     @mouseleave="onMouseLeave"
   >
     <div class="post-card__cover" :style="coverStyle">
+      <img
+        v-if="hasCover"
+        :src="post.cover"
+        :alt="post.title"
+        class="post-card__cover-img"
+        loading="lazy"
+      />
       <span class="post-card__tag">{{ post.tag }}</span>
-      <span class="post-card__cover-icon">{{ tagIcon }}</span>
-      <div class="post-card__cover-pattern" />
+      <span v-if="!hasCover" class="post-card__cover-icon">{{ tagIcon }}</span>
+      <div v-if="!hasCover" class="post-card__cover-pattern" />
       <!-- 悬停时的光晕扩散 -->
       <div class="post-card__glow" />
     </div>
@@ -184,6 +193,16 @@ const magneticStyle = computed(() => ({
 /* 悬停时封面微放大 */
 .post-card:hover .post-card__cover {
   transform: scale(1.03);
+}
+
+/* 上传封面图（有封面时覆盖在渐变之上） */
+.post-card__cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
 }
 
 .post-card__cover::after {

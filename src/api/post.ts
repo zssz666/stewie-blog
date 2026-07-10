@@ -13,14 +13,27 @@ export interface PostQuery {
  * 分页获取已发布文章列表（支持 分类/标签 过滤）
  * 对应后端 GET /api/posts?page=&size=&category=&tag=
  */
-export function getPosts(query: PostQuery = {}): Promise<PageResult<Post>> {
+export async function getPosts(query: PostQuery = {}): Promise<PageResult<Post>> {
   const params = new URLSearchParams()
   if (query.page != null) params.set('page', String(query.page))
   if (query.size != null) params.set('size', String(query.size))
   if (query.category) params.set('category', query.category)
   if (query.tag) params.set('tag', query.tag)
   const qs = params.toString()
-  return request<PageResult<Post>>(qs ? `/posts?${qs}` : '/posts')
+  const raw = await request<any>(qs ? `/posts?${qs}` : '/posts')
+  // 兼容后端两种返回结构：
+  //   新版: PageResult { list, total, pages, page, size }
+  //   旧版: 裸数组 Post[]
+  if (Array.isArray(raw)) {
+    return { list: raw, total: raw.length, page: 1, size: raw.length }
+  }
+  return {
+    list: raw?.list ?? [],
+    total: raw?.total ?? 0,
+    page: raw?.page ?? 1,
+    size: raw?.size ?? raw?.list?.length ?? 0,
+    pages: raw?.pages,
+  }
 }
 
 /** 根据 slug 获取文章详情（浏览量 +1） */

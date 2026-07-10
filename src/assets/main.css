@@ -444,8 +444,4 @@ a:hover {
   .article-content blockquote:hover {
     transform: none;
   }
-
-  html {
-    scroll-behavior: auto;
-  }
 }

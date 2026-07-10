@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
+import { useAuthStore } from '@/stores/auth'
 import IconSun from './icons/IconSun.vue'
 import IconMoon from './icons/IconMoon.vue'
 import IconMenu from './icons/IconMenu.vue'
@@ -10,7 +11,9 @@ import IconClose from './icons/IconClose.vue'
 
 const themeStore = useThemeStore()
 const uiStore = useUiStore()
+const authStore = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 
 const scrolled = ref(false)
 const menuOpen = ref(false)
@@ -51,6 +54,16 @@ function handleScroll() {
 
 function closeMenu() {
   menuOpen.value = false
+}
+
+const displayName = computed(() => authStore.user?.nickname || authStore.user?.username || '')
+const avatarText = computed(() => (displayName.value || 'U').charAt(0).toUpperCase())
+
+function handleLogout() {
+  authStore.logout()
+  closeMenu()
+  if (route.name === 'login') return
+  router.push('/')
 }
 
 // 路由切换时重置（scrollBehavior 已回到顶部），避免残留「标题态」
@@ -103,6 +116,17 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="navbar__actions">
+        <!-- 登录态：管理后台入口 + 头像 + 用户名 + 退出（仅作者本人会话可见） -->
+        <template v-if="authStore.isLoggedIn">
+          <RouterLink to="/admin" class="navbar__admin-link">管理后台</RouterLink>
+          <div class="navbar__user">
+            <span class="navbar__avatar">{{ avatarText }}</span>
+            <span class="navbar__username">{{ displayName }}</span>
+          </div>
+          <button class="navbar__logout" type="button" @click="handleLogout">退出</button>
+        </template>
+        <!-- 未登录：登录入口已隐藏，公开读者不可见；作者通过 /login 或后续的 /admin 直达地址进入 -->
+
         <button
           class="theme-toggle"
           type="button"
@@ -347,6 +371,118 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* 已登录：头像 + 用户名 + 退出 */
+.navbar__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.navbar__avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  color: #fff;
+  font-family: var(--font-nav);
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+}
+
+.navbar__username {
+  font-family: var(--font-nav);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-text);
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navbar__logout {
+  height: 34px;
+  padding: 0 12px;
+  font-family: var(--font-nav);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.navbar__logout:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* 登录态：管理后台入口 */
+.navbar__admin-link {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  font-family: var(--font-nav);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    filter var(--transition-fast);
+}
+
+.navbar__admin-link:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+/* 首页透明态：管理后台按钮保持品牌色，仅微调 */
+.navbar--home:not(.navbar--scrolled) .navbar__admin-link {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: none;
+  color: #fff;
+}
+
+/* 首页透明态下的登录态元素 */
+.navbar--home:not(.navbar--scrolled) .navbar__username {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.navbar--home:not(.navbar--scrolled) .navbar__logout {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.navbar--home:not(.navbar--scrolled) .navbar__logout:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .navbar__username {
+    display: none;
+  }
 }
 
 .theme-toggle,
