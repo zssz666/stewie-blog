@@ -1,10 +1,3 @@
-/* ============================================================
-   Stewie Blog · 管理后台设计系统（Admin Design System）
-   统一后台视觉语言：页面头 / 面板 / 统计卡 / 表格 /
-   筛选药丸 / 按钮 / 徽章 / 分段控件 / 表单 / 空态
-   依赖 base.css 的设计令牌（明暗双主题自动适配）
-   ============================================================ */
-
 /* ── 页面头：标题 + 副标题 + 右侧操作 ── */
 .admin-pagehead {
   display: flex;
@@ -260,8 +253,10 @@
 /* ── 表格 ── */
 .admin-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: auto;
 }
 .admin-table th {
   text-align: left;
@@ -273,11 +268,17 @@
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
+/* 标题列：占满剩余空间 */
+.admin-table th:first-child,
+.admin-table td:first-child {
+  width: 100%;
+}
 .admin-table td {
-  padding: 13px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
   color: var(--color-text);
+  white-space: nowrap;
 }
 .admin-table tbody tr {
   transition: background var(--transition-fast);
@@ -289,22 +290,28 @@
   border-bottom: none;
 }
 .admin-table__ops {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  width: 1%;
   white-space: nowrap;
-  min-width: 160px;
+  vertical-align: middle;
+  padding-right: 16px;
+}
+.admin-table__ops-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 180px;
 }
 .admin-cell-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 .admin-cell-title__cover {
-  width: 44px;
-  height: 33px;
+  width: 72px;
+  height: 54px;
   flex-shrink: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background-size: cover;
   background-position: center;
 }
@@ -323,7 +330,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
 }
 .admin-cell-title__slug {
   font-size: 12px;

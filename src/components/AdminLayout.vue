@@ -7,9 +7,17 @@ const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-// 导航项 active 判定：精确匹配或以其为前缀（用于「文章管理」覆盖 new/edit 子页）
+// 导航项 active 判定
+// — 精确匹配或以其为前缀（用于「文章管理」覆盖 edit 等子页）
+// — 但排除同级子导航路径（如 /admin/posts/new 不应点亮「文章管理」）
 function active(...paths: string[]) {
   return paths.some((p) => route.path === p || route.path.startsWith(p + '/'))
+}
+
+/** 父级导航项专用：精确匹配或以之为前缀，但排除指定的子路由 */
+function activeParent(path: string, exclude: string[] = []) {
+  if (exclude.some((e) => route.path === path + e)) return false
+  return route.path === path || route.path.startsWith(path + '/')
 }
 
 async function logout() {
@@ -46,7 +54,7 @@ async function logout() {
 
         <nav class="admin__group">
           <span class="admin__group-label">内容管理</span>
-          <RouterLink to="/admin/posts" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/posts') }">
+          <RouterLink to="/admin/posts" class="admin__nav" :class="{ 'admin__nav--active': activeParent('/admin/posts', ['/new']) }">
             <span class="admin__nav-ico">📄</span> 文章管理
           </RouterLink>
           <RouterLink to="/admin/posts/new" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/posts/new') }">
@@ -160,7 +168,7 @@ async function logout() {
 .admin__body {
   display: flex;
   align-items: flex-start;
-  max-width: 1240px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 26px 24px;
   gap: 28px;

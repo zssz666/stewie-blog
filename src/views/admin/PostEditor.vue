@@ -76,8 +76,8 @@ function insertFormat(type: FmtType) {
 const hints: { syntax: string; desc: string; sample: string }[] = [
   { syntax: '### 标题', desc: '三级标题（小标题）', sample: '### 这是小标题' },
   { syntax: '**加粗** / *斜体*', desc: '强调文字', sample: '**重要** 与 *轻读*' },
-  { syntax: '`行内代码`', desc: '行内等宽代码', sample: '使用 `npm run dev`' },
-  { syntax: '``` 代码块 ```', desc: '多行代码块', sample: '```\nconst a = 1\n```' },
+  { syntax: '<code>行内代码</code>', desc: '行内等宽代码', sample: '使用 <code>npm run dev</code>' },
+  { syntax: '<pre><code>代码块</code></pre>', desc: '多行代码块', sample: '<pre><code>\nconst a = 1\n</code></pre>' },
   { syntax: '[文字](url)', desc: '超链接', sample: '[Stewie](https://stewie.fun)' },
   { syntax: '![alt](url)', desc: '图片', sample: '![封面](https://x/y.png)' },
   { syntax: '- 列表项', desc: '无序列表', sample: '- 第一项\n- 第二项' },
@@ -248,7 +248,7 @@ async function save() {
                   ref="contentInput"
                   v-model="content"
                   class="md-input"
-                  placeholder="在此用 Markdown 撰写正文…\n\n### 小标题\n**加粗**、*斜体*、`代码`\n```\n代码块\n```"
+                  placeholder="在此用 Markdown 撰写正文…\n\n### 小标题\n**加粗**、*斜体*、<code>代码</code>\n<pre><code>\n代码块\n</pre></code>"
                   spellcheck="false"
                 />
                 <div class="md-preview">

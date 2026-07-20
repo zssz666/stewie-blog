@@ -119,9 +119,11 @@ onMounted(load)
               <td>{{ p.date || '—' }}</td>
               <td>{{ p.views }}</td>
               <td class="admin-table__ops">
-                <RouterLink :to="`/admin/posts/${p.id}/edit`" class="btn btn--link is-primary">编辑</RouterLink>
-                <button class="btn btn--link is-danger" @click="remove(p)">删除</button>
-                <RouterLink v-if="p.status === 1" :to="`/post/${p.slug}`" class="btn btn--link" target="_blank">查看</RouterLink>
+                <div class="admin-table__ops-inner">
+                  <RouterLink :to="`/admin/posts/${p.id}/edit`" class="btn btn--link is-primary">编辑</RouterLink>
+                  <button class="btn btn--link is-danger" @click="remove(p)">删除</button>
+                  <RouterLink v-if="p.status === 1" :to="`/post/${p.slug}`" class="btn btn--link" target="_blank">查看</RouterLink>
+                </div>
               </td>
             </tr>
             <tr v-if="!posts.length">
