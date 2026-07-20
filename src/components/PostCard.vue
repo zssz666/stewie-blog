@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Post } from '@/types/blog'
 import { useMagnetic } from '@/composables/useMagnetic'
+import { resolveAsset } from '@/api/request'
 
 const props = withDefaults(
   defineProps<{ post: Post; featured?: boolean }>(),
@@ -27,6 +28,7 @@ const coverStyle = computed(() => {
 })
 
 const hasCover = computed(() => !!props.post.cover)
+const coverSrc = computed(() => resolveAsset(props.post.cover))
 
 const tagIcon = computed(() => tagColors[props.post.tag]?.icon ?? '•')
 
@@ -61,7 +63,7 @@ const magneticStyle = computed(() => ({
     <div class="post-card__cover" :style="coverStyle">
       <img
         v-if="hasCover"
-        :src="post.cover"
+        :src="coverSrc"
         :alt="post.title"
         class="post-card__cover-img"
         loading="lazy"

@@ -7,9 +7,14 @@ import { request } from './request'
  */
 let cached: Promise<Author> | null = null
 
-export function getAuthor(): Promise<Author> {
-  if (!cached) {
+export function getAuthor(force = false): Promise<Author> {
+  if (!cached || force) {
     cached = request<Author>('/author')
   }
   return cached
+}
+
+/** 作者信息变更后清除缓存，使关于页/文章页下次拉取最新数据 */
+export function invalidateAuthorCache(): void {
+  cached = null
 }

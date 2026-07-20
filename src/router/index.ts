@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 import { getToken } from '@/utils/token'
 
 const router = createRouter({
@@ -26,6 +27,11 @@ const router = createRouter({
       component: () => import('../views/AboutView.vue'),
     },
     {
+      path: '/search',
+      name: 'search',
+      component: () => import('../views/SearchView.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('../views/LoginView.vue'),
@@ -40,6 +46,11 @@ const router = createRouter({
           path: '',
           name: 'admin',
           component: () => import('../views/admin/AdminDashboard.vue'),
+        },
+        {
+          path: 'posts',
+          name: 'admin-posts',
+          component: () => import('../views/admin/AdminPosts.vue'),
         },
         {
           path: 'posts/new',
@@ -57,7 +68,18 @@ const router = createRouter({
           name: 'admin-comments',
           component: () => import('../views/admin/AdminComments.vue'),
         },
+        {
+          path: 'author',
+          name: 'admin-author',
+          component: () => import('../views/admin/AdminAuthor.vue'),
+        },
       ],
+    },
+    {
+      // 兜底：未匹配任何路由时显示 404
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
     },
   ],
   scrollBehavior() {

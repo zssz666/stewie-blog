@@ -22,7 +22,7 @@
 - **文章详情**：视差 banner（含封面大图）、阅读进度条、摘要框、macOS 风格代码块（圆点 + 复制）、悬浮 TOC 目录、**点赞（按指纹幂等）**、**评论（含楼中楼 + 审核态）**。
 - **关于页**：头像虚线圆环 + 呼吸动画、时间线滑入、技术栈标签 hover 填充。
 - **管理后台 `/admin`**（需登录）：文章管理表格（封面缩略图 / 状态徽章 / 分页 / 删除）、文章编辑器（标题 / slug / 摘要 / 正文 / **封面上传** / 分类 / 多标签 / 发布日期 / 草稿·发布）、评论审核台（通过 / 标记垃圾 / 删除）。
-- **全局**：路由过渡动画、返回顶部浮动按钮、深色模式切换、链接下划线中心展开、`fetchpriority` 优化首屏 LCP。
+- **全局**：路由过渡动画、返回顶部浮动按钮、深色模式切换、链接下划线中心展开、`fetchpriority` 优化首屏 LCP、未知路由 404 页面。
 
 ## 项目结构
 
@@ -77,12 +77,74 @@ npm run lint
 
 ### 对接后端
 
-开发时通过 Vite 代理访问后端（`vite.config.ts` 已配置）：
+开发（`npm run dev`）与生产预览（`npm run preview`）均通过 Vite 代理访问后端（`vite.config.ts` 已同时配置 `server.proxy` 与 `preview.proxy`）：
 
 - `/api` → `http://localhost:8081`
 - `/uploads` → `http://localhost:8081`（封面图静态访问）
 
-请确保后端已在 `8081` 启动（见 [`../stewie-blog-spring/README.md`](../stewie-blog-spring/README.md)）。生产构建产物在 `dist/`，可由任意静态服务器托管，并将 `/api` 反向代理到后端。
+请确保后端已在 `8081` 启动（见 [`../stewie-blog-spring/README.md`](../stewie-blog-spring/README.md)）。
+
+> 注意：`npm run preview` **默认不会**复用 `server.proxy`，必须在 `preview.proxy` 中再次声明，否则打包后用 preview 测登录 / 进入 `/admin` 会因 `/api` 不通而失败。本项目已配置好，可直接 `npm run preview` 验证。
+
+### 部署说明（SPA 注意事项）
+
+构建产物在 `dist/`，可由任意静态服务器托管。根据前后端是否同源，有两种部署方式：
+
+#### 方式 A：前后端同源（推荐，最简单）
+
+用 Nginx（或同域反代）同时托管前端静态文件与后端，浏览器看来是同一个域名：
+
+- 前端 `dist/` 放到 Nginx 静态根目录
+- Nginx 把 `/api`、`/uploads` 反代到后端 `:8081`
+- 前端无需改任何变量（默认 `VITE_API_BASE_URL=/api`）
+
+```nginx
+server {
+    listen 80;
+    server_name blog.your-domain.com;
+
+    root /path/to/dist;
+    index index.html;
+
+    # SPA 路由回退：所有前端深链接（/admin、/post/xxx）都返回 index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 接口与上传反代到 Spring Boot
+    location /api/  { proxy_pass http://127.0.0.1:8081; }
+    location /uploads/ { proxy_pass http://127.0.0.1:8081; }
+}
+```
+
+后端在同域下**不受 CORS 限制**，无需额外配置 `CORS_ALLOWED_ORIGINS`。
+
+#### 方式 B：前后端跨域（如前端 GitHub Pages + 后端云服务器）
+
+1. **构建前设置环境变量** `VITE_API_BASE_URL` 指向后端公共基址（见 `.env.example`）：
+
+   ```sh
+   # .env.production
+   VITE_API_BASE_URL=https://api.your-domain.com/api
+   ```
+
+   构建后，封面图等静态资源会自动拼成 `https://api.your-domain.com/uploads/...`。
+
+2. **后端允许前端域名**：在后端启动时通过环境变量追加 CORS 白名单（多个用逗号分隔）：
+
+   ```sh
+   CORS_ALLOWED_ORIGINS=https://your-name.github.io,https://blog.your-domain.com \
+   java -jar stewie-blog-spring-0.0.1-SNAPSHOT.jar --server.port=8081
+   ```
+
+3. **SPA 深链接回退**：纯静态托管（GitHub Pages / Netlify / Vercel）需把未知路由回退到 `index.html`，否则刷新 `/admin`、文章详情会 404：
+   - **GitHub Pages**：根目录放 `404.html`（复制 `index.html` 内容）；或改用 hash 路由。
+   - **Netlify**：`public/_redirects` 写 `/* /index.html 200`
+   - **Vercel / 通用**：把所有非资源请求 rewrite 到 `index.html`
+
+> 关键点：无论哪种方式，**只要登录接口 `/api/auth/login` 不通或被 CORS 拦截，就无法拿到 token，自然进不去 `/admin`**。打包后"进不去后台"几乎都是这个原因——检查接口是否可达、后端 CORS 是否放行了前端域名。
+
+未知路由会由前端 catch-all 渲染 404 页面（`/` 之外的任意路径）。
 
 ## 设计说明
 

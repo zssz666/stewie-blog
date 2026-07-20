@@ -74,3 +74,31 @@ export function reviewComment(id: number, status: number) {
 export function deleteComment(id: number) {
   return request<void>(`/admin/comments/${id}`, { method: 'DELETE' })
 }
+
+/* ── 仪表盘统计 ── */
+export interface DashboardStats {
+  postsTotal: number
+  postsPublished: number
+  commentsTotal: number
+  commentsPending: number
+  viewsTotal: number
+  likesTotal: number
+}
+
+export function getStats(): Promise<DashboardStats> {
+  return request<DashboardStats>('/admin/stats')
+}
+
+/* ── 作者信息更新 ── */
+export interface AuthorUpdateInput {
+  name?: string
+  role?: string
+  bio?: string
+  avatar?: string
+  skills?: string[]
+  socials?: { label: string; href: string }[]
+}
+
+export function updateAuthor(input: AuthorUpdateInput): Promise<void> {
+  return request<void>('/admin/author', { method: 'PUT', body: JSON.stringify(input) })
+}

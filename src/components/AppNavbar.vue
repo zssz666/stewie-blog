@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
+import { apiLogout } from '@/api/auth'
 import IconSun from './icons/IconSun.vue'
 import IconMoon from './icons/IconMoon.vue'
 import IconMenu from './icons/IconMenu.vue'
@@ -27,6 +28,7 @@ const pageTitleMap: Record<string, string> = {
   '/': 'Stewie 的博客',
   '/articles': '全部文章',
   '/about': '关于我',
+  '/search': '搜索',
 }
 
 const currentTitle = computed(() => {
@@ -59,7 +61,15 @@ function closeMenu() {
 const displayName = computed(() => authStore.user?.nickname || authStore.user?.username || '')
 const avatarText = computed(() => (displayName.value || 'U').charAt(0).toUpperCase())
 
-function handleLogout() {
+/* ── 搜索入口：跳转到 /search?q= ── */
+const searchQuery = ref('')
+function goSearch() {
+  const q = searchQuery.value.trim()
+  router.push(q ? { name: 'search', query: { q } } : { name: 'search' })
+}
+
+async function handleLogout() {
+  await apiLogout() // 尽力通知后端；无状态 JWT 失败也不影响前端清会话
   authStore.logout()
   closeMenu()
   if (route.name === 'login') return
@@ -116,6 +126,24 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="navbar__actions">
+        <!-- 搜索入口：始终可见（公开搜索） -->
+        <form class="navbar__search" role="search" @submit.prevent="goSearch">
+          <button type="submit" class="navbar__search-btn" aria-label="搜索文章">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </button>
+          <input
+            v-model="searchQuery"
+            class="navbar__search-input"
+            type="search"
+            placeholder="搜索文章…"
+            aria-label="搜索文章"
+            autocomplete="off"
+          />
+        </form>
+
         <!-- 登录态：管理后台入口 + 头像 + 用户名 + 退出（仅作者本人会话可见） -->
         <template v-if="authStore.isLoggedIn">
           <RouterLink to="/admin" class="navbar__admin-link">管理后台</RouterLink>
@@ -373,6 +401,63 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+/* 搜索框 */
+.navbar__search {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px 4px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.navbar__search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.navbar__search-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.navbar__search-btn:hover {
+  color: var(--color-primary);
+}
+
+.navbar__search-input {
+  width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  padding: 4px 6px 4px 2px;
+  transition: width 0.25s var(--ease);
+}
+
+.navbar__search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.navbar__search-input:focus {
+  width: 160px;
+}
+
+/* 首页透明态（未滚动）：隐藏搜索框，待导航栏滚动变化后再出现 */
+.navbar--home:not(.navbar--scrolled) .navbar__search {
+  display: none;
+}
+
 /* 已登录：头像 + 用户名 + 退出 */
 .navbar__user {
   display: flex;
@@ -481,6 +566,15 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .navbar__username {
+    display: none;
+  }
+
+  /* 移动端：搜索框只显示图标按钮，点击进入 /search 页输入 */
+  .navbar__search {
+    padding: 6px;
+    border-radius: var(--radius-full);
+  }
+  .navbar__search-input {
     display: none;
   }
 }

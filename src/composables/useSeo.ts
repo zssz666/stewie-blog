@@ -1,7 +1,8 @@
 import { useHead } from '@unhead/vue'
+import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
-/** 站点根 URL，换域名时改这一处即可 */
-const SITE_URL = 'http://8.137.165.237:88'
+/** 站点根 URL，换域名时改这一处即可（已切到 ICP 备案通过的正式域名） */
+const SITE_URL = 'https://stewie.fun'
 const SITE_NAME = 'Stewie 的前端博客'
 const DEFAULT_TITLE = 'Stewie 的前端博客 | Vue 3 踩坑 · TypeScript · Vite 实战笔记'
 const DEFAULT_DESC =
@@ -10,27 +11,31 @@ const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`
 
 interface SeoOptions {
   /** 页面标题（不含站点名，会自动拼接） */
-  title?: string
+  title?: MaybeRefOrGetter<string | undefined>
   /** 页面描述 */
-  description?: string
+  description?: MaybeRefOrGetter<string | undefined>
   /** 路由路径，用于拼 canonical/og:url，如 '/articles' */
-  path?: string
+  path?: MaybeRefOrGetter<string | undefined>
   /** 社交分享图，默认站点 og-image */
-  image?: string
+  image?: MaybeRefOrGetter<string | undefined>
   /** OG 类型：website | article */
-  type?: 'website' | 'article'
+  type?: MaybeRefOrGetter<'website' | 'article' | undefined>
 }
 
 /**
- * 统一设置页面 SEO meta
- * 在各 view 的 setup 顶层调用
+ * 统一设置页面 SEO meta（支持响应式：可传 ref / computed，切换文章时自动更新）
+ * 在各 view 的 setup 顶层调用一次即可
  */
 export function useSeo(options: SeoOptions = {}) {
-  const url = options.path ? `${SITE_URL}${options.path}` : SITE_URL
-  const title = options.title ? `${options.title} | ${SITE_NAME}` : DEFAULT_TITLE
-  const description = options.description || DEFAULT_DESC
-  const image = options.image || DEFAULT_IMAGE
-  const type = options.type || 'website'
+  const url = computed(() =>
+    toValue(options.path) ? `${SITE_URL}${toValue(options.path)}` : SITE_URL,
+  )
+  const title = computed(() =>
+    toValue(options.title) ? `${toValue(options.title)} | ${SITE_NAME}` : DEFAULT_TITLE,
+  )
+  const description = computed(() => toValue(options.description) || DEFAULT_DESC)
+  const image = computed(() => toValue(options.image) || DEFAULT_IMAGE)
+  const type = computed(() => toValue(options.type) || 'website')
 
   useHead({
     title,

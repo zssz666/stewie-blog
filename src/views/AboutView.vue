@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { Author } from '@/types/blog'
 import { getAuthor } from '@/api/author'
+import { resolveAsset } from '@/api/request'
 import { useSeo } from '@/composables/useSeo'
 
 useSeo({
@@ -58,9 +59,15 @@ const socialIcons: Record<string, string> = {
     <section class="container about__hero" v-reveal>
       <div class="about__avatar-wrap">
         <div class="about__avatar-ring" />
-        <div class="about__avatar">
-          {{ author.name.charAt(0) }}
-        </div>
+      <img
+        v-if="author.avatar"
+        :src="resolveAsset(author.avatar)"
+        :alt="author.name"
+        class="about__avatar about__avatar--img"
+      />
+      <div v-else class="about__avatar">
+        {{ author.name.charAt(0) }}
+      </div>
       </div>
       <div class="about__intro">
         <h1 class="about__name">你好，我是 {{ author.name }}</h1>
@@ -181,6 +188,12 @@ const socialIcons: Record<string, string> = {
   font-weight: 800;
   box-shadow: 0 8px 28px rgba(37, 99, 235, 0.35);
   animation: breathe 3s ease-in-out infinite;
+}
+
+.about__avatar--img {
+  object-fit: cover;
+  padding: 0;
+  background: var(--color-surface);
 }
 
 @keyframes breathe {

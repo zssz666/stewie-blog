@@ -2,8 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import type { Author, Post, Comment } from '@/types/blog'
-import { getPostBySlug } from '@/api/post'
+import { getPostBySlug, incrementViews } from '@/api/post'
 import { getAuthor } from '@/api/author'
+import { resolveAsset } from '@/api/request'
 import {
   getLikeStatus,
   likePost,
@@ -11,6 +12,7 @@ import {
   createComment,
 } from '@/api/interaction'
 import { useUiStore } from '@/stores/ui'
+import { useSeo } from '@/composables/useSeo'
 import PopularPosts from '@/components/PopularPosts.vue'
 
 const route = useRoute()
@@ -21,6 +23,15 @@ const post = ref<Post | null>(null)
 const loading = ref(true)
 // 占位值，接口返回前模板不会报错
 const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
+
+// 每篇文章独立 SEO：标题 / canonical / og 随文章切换响应式更新
+useSeo({
+  title: computed(() => post.value?.title),
+  description: computed(() => post.value?.excerpt),
+  path: computed(() => (post.value ? `/post/${post.value.slug}` : undefined)),
+  image: computed(() => (post.value?.cover ? resolveAsset(post.value.cover) : undefined)),
+  type: 'article',
+})
 
 const formattedDate = computed(() => {
   if (!post.value) return ''
@@ -277,6 +288,9 @@ async function loadPost() {
     post.value = data
     liked.value = false
     likeCount.value = data.likes ?? 0
+    // 浏览量埋点：发起 +1 请求（不阻塞渲染），并乐观更新本地计数
+    incrementViews(data.id).catch(() => {})
+    if (post.value) post.value.views = (data.views ?? 0) + 1
     // 重置互动区（切换文章时）
     comments.value = []
     commentForm.nickname = ''
@@ -287,6 +301,9 @@ async function loadPost() {
     // 并行加载点赞状态与评论树
     await Promise.all([loadLikeStatus(), loadComments()])
     uiStore.setPostTitle(data.title) // 供导航栏吸顶显示
+    // 先结束 loading，确保 .post__main（含 v-html 正文与 articleRef）已挂载，
+    // 再在 nextTick 中增强代码块：否则 articleRef 为 null，macOS 装饰不会生成
+    loading.value = false
     nextTick(() => {
       buildToc()
       enhanceCodeBlocks()
@@ -332,7 +349,7 @@ onBeforeUnmount(() => {
       <div class="post__banner-bg" />
       <img
         v-if="post?.cover"
-        :src="post.cover"
+        :src="resolveAsset(post.cover)"
         :alt="post.title"
         class="post__banner-cover"
       />
@@ -352,7 +369,13 @@ onBeforeUnmount(() => {
           <h1 class="post__title">{{ post?.title }}</h1>
           <div class="post__meta">
             <span class="post__author">
-              <span class="post__author-avatar">{{ author.name.charAt(0) }}</span>
+              <img
+                v-if="author.avatar"
+                :src="resolveAsset(author.avatar)"
+                :alt="author.name"
+                class="post__author-avatar post__author-avatar--img"
+              />
+              <span v-else class="post__author-avatar">{{ author.name.charAt(0) }}</span>
               {{ author.name }}
             </span>
             <span class="post__dot" />
@@ -698,6 +721,12 @@ onBeforeUnmount(() => {
   color: #fff;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   border-radius: 50%;
+}
+
+.post__author-avatar--img {
+  object-fit: cover;
+  padding: 0;
+  background: var(--color-surface);
 }
 
 .post__dot {

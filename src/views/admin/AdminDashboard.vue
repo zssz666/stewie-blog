@@ -1,306 +1,186 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import type { Post } from '@/types/blog'
-import { deletePost, listAdminPosts } from '@/api/admin'
+import { RouterLink } from 'vue-router'
+import type { Comment, Post } from '@/types/blog'
+import { getStats, listAdminComments, listAdminPosts, type DashboardStats } from '@/api/admin'
+import { resolveAsset } from '@/api/request'
 
-const router = useRouter()
-const posts = ref<Post[]>([])
-const total = ref(0)
-const page = ref(1)
-const size = ref(10)
-const statusFilter = ref<number | null>(null)
+/* ── 统计 ── */
+const stats = ref<DashboardStats | null>(null)
+
+/* ── 最近文章 / 待审核评论 ── */
+const recentPosts = ref<Post[]>([])
+const pendingComments = ref<Comment[]>([])
 const loading = ref(false)
 
 async function load() {
   loading.value = true
   try {
-    const res = await listAdminPosts({
-      page: page.value,
-      size: size.value,
-      status: statusFilter.value ?? undefined,
-    })
-    posts.value = res.list
-    total.value = res.total
+    const [s, posts, comments] = await Promise.all([
+      getStats(),
+      listAdminPosts({ page: 1, size: 5 }),
+      listAdminComments({ page: 1, size: 5, status: 0 }),
+    ])
+    stats.value = s
+    recentPosts.value = posts.list
+    pendingComments.value = comments.list
+  } catch (e) {
+    console.error('加载概览失败:', e)
   } finally {
     loading.value = false
   }
-}
-
-function changeStatus(s: number | null) {
-  statusFilter.value = s
-  page.value = 1
-  load()
-}
-
-function prev() {
-  if (page.value > 1) {
-    page.value--
-    load()
-  }
-}
-function next() {
-  if (page.value * size.value < total.value) {
-    page.value++
-    load()
-  }
-}
-
-async function remove(post: Post) {
-  if (!confirm(`确定删除《${post.title}》？该操作不可恢复（逻辑删除）。`)) return
-  await deletePost(post.id)
-  if (posts.value.length === 1 && page.value > 1) page.value--
-  await load()
 }
 
 function statusText(s?: number) {
   return s === 1 ? '已发布' : '草稿'
 }
 
+function coverBg(url?: string) {
+  return url ? { backgroundImage: `url(${resolveAsset(url)})` } : {}
+}
+
 onMounted(load)
 </script>
 
 <template>
-  <section class="dash">
-    <div class="dash__head">
+  <section>
+    <div class="admin-pagehead">
       <div>
-        <h1 class="dash__title">文章管理</h1>
-        <p class="dash__sub">共 {{ total }} 篇 · 含草稿</p>
+        <h1 class="admin-pagehead__title">仪表盘</h1>
+        <p class="admin-pagehead__sub">站点数据概览与快捷操作</p>
       </div>
-      <RouterLink to="/admin/posts/new" class="dash__new">✍️ 写新文章</RouterLink>
+      <div class="admin-pagehead__actions">
+        <RouterLink to="/admin/posts/new" class="btn btn--primary btn--md">✍️ 写新文章</RouterLink>
+      </div>
     </div>
 
-    <div class="dash__filters">
-      <button :class="{ on: statusFilter === null }" @click="changeStatus(null)">全部</button>
-      <button :class="{ on: statusFilter === 1 }" @click="changeStatus(1)">已发布</button>
-      <button :class="{ on: statusFilter === 0 }" @click="changeStatus(0)">草稿</button>
+    <!-- 统计卡片 -->
+    <div class="stat-grid" v-reveal>
+      <div class="stat stat--primary">
+        <span class="stat__ico">📄</span>
+        <div class="stat__body">
+          <span class="stat__num">{{ stats ? stats.postsPublished : '–' }}</span>
+          <span class="stat__label">已发布文章</span>
+        </div>
+      </div>
+      <div class="stat stat--info">
+        <span class="stat__ico">📚</span>
+        <div class="stat__body">
+          <span class="stat__num">{{ stats ? stats.postsTotal : '–' }}</span>
+          <span class="stat__label">文章总数（含草稿）</span>
+        </div>
+      </div>
+      <div class="stat stat--accent">
+        <span class="stat__ico">💬</span>
+        <div class="stat__body">
+          <span class="stat__num">{{ stats ? stats.commentsTotal : '–' }}</span>
+          <span class="stat__label">评论总数</span>
+        </div>
+      </div>
+      <div class="stat stat--warning">
+        <span class="stat__ico">⏳</span>
+        <div class="stat__body">
+          <span class="stat__num" :class="{ 'stat__num--warn': stats && stats.commentsPending > 0 }">
+            {{ stats ? stats.commentsPending : '–' }}
+          </span>
+          <span class="stat__label">待审核评论</span>
+        </div>
+      </div>
+      <div class="stat stat--success">
+        <span class="stat__ico">👁️</span>
+        <div class="stat__body">
+          <span class="stat__num">{{ stats ? stats.viewsTotal.toLocaleString() : '–' }}</span>
+          <span class="stat__label">总浏览量</span>
+        </div>
+      </div>
+      <div class="stat stat--rose">
+        <span class="stat__ico">❤️</span>
+        <div class="stat__body">
+          <span class="stat__num">{{ stats ? stats.likesTotal : '–' }}</span>
+          <span class="stat__label">总点赞</span>
+        </div>
+      </div>
     </div>
 
-    <div v-if="loading" class="dash__loading">加载中…</div>
+    <!-- 快捷操作 -->
+    <div class="qa-grid">
+      <RouterLink to="/admin/posts/new" class="qa">
+        <span class="qa__ico">✍️</span>
+        <span class="qa__text">
+          <span class="qa__title">撰写文章</span>
+          <span class="qa__sub">发布新内容到博客</span>
+        </span>
+      </RouterLink>
+      <RouterLink to="/admin/comments" class="qa">
+        <span class="qa__ico">💬</span>
+        <span class="qa__text">
+          <span class="qa__title">审核评论</span>
+          <span class="qa__sub">处理读者互动与反馈</span>
+        </span>
+      </RouterLink>
+      <RouterLink to="/admin/author" class="qa">
+        <span class="qa__ico">👤</span>
+        <span class="qa__text">
+          <span class="qa__title">编辑关于页</span>
+          <span class="qa__sub">更新作者信息与简介</span>
+        </span>
+      </RouterLink>
+    </div>
 
-    <table v-else class="dash__table">
-      <thead>
-        <tr>
-          <th>标题</th>
-          <th>状态</th>
-          <th>分类</th>
-          <th>日期</th>
-          <th>浏览</th>
-          <th class="dash__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in posts" :key="p.id">
-          <td class="dash__title-cell">
-            <span class="dash__cover" v-if="p.cover" :style="{ backgroundImage: `url(${p.cover})` }" />
-            <span v-else class="dash__cover dash__cover--ph" />
-            <div class="dash__title-meta">
-              <span class="dash__name">{{ p.title }}</span>
-              <span class="dash__slug">/{{ p.slug }}</span>
-            </div>
-          </td>
-          <td>
-            <span class="badge" :class="p.status === 1 ? 'badge--on' : 'badge--off'">
-              {{ statusText(p.status) }}
-            </span>
-          </td>
-          <td>{{ p.category || '—' }}</td>
-          <td>{{ p.date || '—' }}</td>
-          <td>{{ p.views }}</td>
-          <td class="dash__ops">
-            <RouterLink :to="`/admin/posts/${p.id}/edit`" class="op op--edit">编辑</RouterLink>
-            <button class="op op--del" @click="remove(p)">删除</button>
-            <RouterLink v-if="p.status === 1" :to="`/post/${p.slug}`" class="op" target="_blank">查看</RouterLink>
-          </td>
-        </tr>
-        <tr v-if="!posts.length">
-          <td colspan="6" class="dash__empty">还没有文章，点击右上角写一篇吧～</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="loading" class="admin-loading">加载中…</div>
 
-    <div class="dash__pager" v-if="total > size">
-      <button :disabled="page <= 1" @click="prev">上一页</button>
-      <span>第 {{ page }} 页</span>
-      <button :disabled="page * size >= total" @click="next">下一页</button>
+    <div v-else class="admin-cols">
+      <!-- 最近文章 -->
+      <div class="admin-panel">
+        <div class="admin-panel__head">
+          <span class="admin-panel__title"><span class="admin-panel__title-ico">📄</span> 最近文章</span>
+          <RouterLink to="/admin/posts" class="admin-panel__more">查看全部 →</RouterLink>
+        </div>
+        <div class="admin-panel__body">
+          <ul class="mini-list">
+            <li v-for="p in recentPosts" :key="p.id" class="mini">
+              <span v-if="p.cover" class="mini__thumb" :style="coverBg(p.cover)" />
+              <span v-else class="mini__thumb mini__thumb--ph" />
+              <div class="mini__main">
+                <RouterLink :to="`/admin/posts/${p.id}/edit`" class="mini__title">{{ p.title }}</RouterLink>
+                <div class="mini__meta">
+                  <span>{{ p.date || '—' }}</span>
+                  <span>·</span>
+                  <span>{{ statusText(p.status) }}</span>
+                  <span>·</span>
+                  <span>{{ p.views }} 浏览</span>
+                </div>
+              </div>
+              <RouterLink :to="`/admin/posts/${p.id}/edit`" class="mini__op">编辑</RouterLink>
+            </li>
+            <li v-if="!recentPosts.length" class="admin-empty" style="padding: 28px">还没有文章</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 待审核评论 -->
+      <div class="admin-panel">
+        <div class="admin-panel__head">
+          <span class="admin-panel__title"><span class="admin-panel__title-ico">⏳</span> 待审核评论</span>
+          <RouterLink to="/admin/comments" class="admin-panel__more">去审核 →</RouterLink>
+        </div>
+        <div class="admin-panel__body">
+          <ul class="mini-list">
+            <li v-for="c in pendingComments" :key="c.id" class="mini">
+              <div class="mini__main">
+                <span class="mini__title">{{ c.nickname }}</span>
+                <div class="mini__meta">
+                  <span class="tag tag--warning" style="padding: 1px 8px">待审</span>
+                  <span>{{ c.createdAt }}</span>
+                </div>
+                <p class="mini__title" style="font-weight: 400; color: var(--color-text); margin-top: 4px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden">{{ c.content }}</p>
+              </div>
+              <RouterLink to="/admin/comments" class="mini__op">审核</RouterLink>
+            </li>
+            <li v-if="!pendingComments.length" class="admin-empty" style="padding: 28px">暂无待审核评论 🎉</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 </template>
-
-<style scoped>
-.dash {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-}
-.dash__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-.dash__title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-heading);
-  font-family: var(--font-serif);
-}
-.dash__sub {
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-.dash__new {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
-  border-radius: 10px;
-}
-.dash__new:hover {
-  opacity: 0.92;
-}
-.dash__filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.dash__filters button {
-  padding: 6px 14px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  cursor: pointer;
-}
-.dash__filters button.on {
-  color: #fff;
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.dash__loading {
-  padding: 40px;
-  text-align: center;
-  color: var(--color-text-tertiary);
-}
-.dash__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.dash__table th {
-  text-align: left;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  border-bottom: 1px solid var(--color-border);
-}
-.dash__table td {
-  padding: 12px;
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
-}
-.dash__title-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.dash__cover {
-  width: 44px;
-  height: 32px;
-  border-radius: 6px;
-  background-size: cover;
-  background-position: center;
-  flex-shrink: 0;
-}
-.dash__cover--ph {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
-  opacity: 0.5;
-}
-.dash__title-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.dash__name {
-  font-weight: 600;
-  color: var(--color-heading);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 320px;
-}
-.dash__slug {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-.badge {
-  padding: 3px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-}
-.badge--on {
-  color: #16a34a;
-  background: rgba(22, 163, 74, 0.12);
-}
-.badge--off {
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.12);
-}
-.dash__ops {
-  display: flex;
-  gap: 8px;
-  white-space: nowrap;
-}
-.op {
-  padding: 5px 12px;
-  font-size: 13px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-  text-decoration: none;
-}
-.op:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-.op--edit {
-  color: var(--color-primary);
-}
-.op--del:hover {
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.4);
-}
-.dash__empty {
-  text-align: center;
-  color: var(--color-text-tertiary);
-  padding: 40px;
-}
-.dash__pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 18px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-.dash__pager button {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-}
-.dash__pager button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-</style>

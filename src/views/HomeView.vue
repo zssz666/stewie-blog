@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import type { Post } from '@/types/blog'
 import { getPosts } from '@/api/post'
 import { useSeo } from '@/composables/useSeo'
@@ -132,6 +132,14 @@ const titleText = '记录开发中踩过的坑,分享学习和成长的点滴'
 const typedHtml = ref('')
 const typingDone = ref(false)
 
+/* ── 首页 Hero 搜索入口 ── */
+const router = useRouter()
+const searchQuery = ref('')
+function goSearch() {
+  const q = searchQuery.value.trim()
+  router.push(q ? { name: 'search', query: { q } } : { name: 'search' })
+}
+
 onMounted(() => {
   // 重访（同会话）：直接显示完整标题，不重播打字动画
   if (introPlayed.value) {
@@ -219,6 +227,23 @@ onMounted(() => {
             关于我
           </RouterLink>
         </div>
+
+        <!-- Hero 搜索条 -->
+        <form class="hero__search" role="search" @submit.prevent="goSearch" v-reveal="460">
+          <svg class="hero__search-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            v-model="searchQuery"
+            class="hero__search-input"
+            type="search"
+            placeholder="搜索文章、技术、踩坑…"
+            aria-label="搜索文章"
+            autocomplete="off"
+          />
+          <button class="hero__search-btn" type="submit">搜索</button>
+        </form>
       </div>
 
       <!-- 滚动提示箭头 -->
@@ -602,6 +627,76 @@ onMounted(() => {
   border-color: rgba(255, 255, 255, 0.42);
   color: #fff;
   transform: translateY(-3px);
+}
+
+/* ── Hero 搜索条 ── */
+.hero__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 36px auto 0;
+  padding: 6px 6px 6px 16px;
+  width: min(520px, 92vw);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+
+.hero__search:focus-within {
+  border-color: rgba(147, 197, 253, 0.7);
+  box-shadow: 0 8px 36px rgba(96, 165, 250, 0.3);
+}
+
+.hero__search-ico {
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.hero__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  padding: 10px 4px;
+}
+
+.hero__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.hero__search-btn {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.2s;
+}
+
+.hero__search-btn:hover {
+  filter: brightness(1.08);
+}
+
+.hero__search-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 640px) {
+  .hero__search {
+    margin-top: 28px;
+  }
 }
 
 /* ── 滚动提示 ── */

@@ -91,7 +91,13 @@ const socialIcons: Record<string, string> = {
       </div>
     </div>
     <div class="container footer__bottom">
-      <span>© {{ year }} Stewie.blog · 用 Vue 3 + Vite 构建</span>
+      <span>© {{ year }} Stewie</span>
+      <a
+        class="footer__beian"
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >渝ICP备2026015418号</a>
     </div>
   </footer>
 </template>
@@ -239,6 +245,10 @@ const socialIcons: Record<string, string> = {
 }
 
 .footer__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding-top: 22px;
   padding-bottom: 30px;
   border-top: 1px solid var(--color-border);
@@ -246,6 +256,17 @@ const socialIcons: Record<string, string> = {
   font-size: 12.5px;
   text-align: center;
   letter-spacing: 0.02em;
+}
+
+.footer__beian {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.footer__beian:hover {
+  color: var(--color-primary);
 }
 
 @media (max-width: 640px) {
