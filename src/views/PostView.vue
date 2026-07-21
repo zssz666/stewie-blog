@@ -13,6 +13,7 @@ import {
 } from '@/api/interaction'
 import { useUiStore } from '@/stores/ui'
 import { useSeo } from '@/composables/useSeo'
+import { enhanceCodeBlocks } from '@/utils/article'
 import PopularPosts from '@/components/PopularPosts.vue'
 
 const route = useRoute()
@@ -129,48 +130,7 @@ function scrollToHeading(id: string) {
   }
 }
 
-/* ── 代码块 macOS 增强 ── */
-function enhanceCodeBlocks() {
-  if (!articleRef.value) return
-  const pres = articleRef.value.querySelectorAll('pre')
-  pres.forEach((pre) => {
-    if (pre.querySelector('.code-dots')) return
-
-    const wrapper = document.createElement('div')
-    wrapper.className = 'code-block'
-    pre.parentNode!.insertBefore(wrapper, pre)
-    wrapper.appendChild(pre)
-
-    const header = document.createElement('div')
-    header.className = 'code-block__header'
-    const dots = document.createElement('div')
-    dots.className = 'code-dots'
-    dots.innerHTML =
-      '<span class="code-dot code-dot--red"></span>' +
-      '<span class="code-dot code-dot--yellow"></span>' +
-      '<span class="code-dot code-dot--green"></span>'
-    const copyBtn = document.createElement('button')
-    copyBtn.className = 'code-copy'
-    copyBtn.textContent = '复制'
-    copyBtn.addEventListener('click', () => {
-      const code = pre.querySelector('code')
-      const text = code ? code.textContent : pre.textContent
-      if (text) {
-        navigator.clipboard.writeText(text).then(() => {
-          copyBtn.textContent = '✓ 已复制'
-          copyBtn.classList.add('code-copy--copied')
-          setTimeout(() => {
-            copyBtn.textContent = '复制'
-            copyBtn.classList.remove('code-copy--copied')
-          }, 1500)
-        })
-      }
-    })
-    header.appendChild(dots)
-    header.appendChild(copyBtn)
-    wrapper.insertBefore(header, pre)
-  })
-}
+/* ── 代码块 macOS 增强（逻辑在 @/utils/article，文章页与后台预览共用） ── */
 
 /* ── 点赞（真实接口，指纹去重） ── */
 const liked = ref(false)
@@ -306,7 +266,7 @@ async function loadPost() {
     loading.value = false
     nextTick(() => {
       buildToc()
-      enhanceCodeBlocks()
+      if (articleRef.value) enhanceCodeBlocks(articleRef.value)
       setupTocObserver()
       handleScroll()
     })
@@ -345,16 +305,22 @@ onBeforeUnmount(() => {
     <div class="reading-progress" :style="{ transform: `scaleX(${progress})` }" />
 
     <!-- 顶部 banner -->
+    <!-- 顶部 banner -->
     <header ref="bannerRef" class="post__banner">
-      <div class="post__banner-bg" />
+      <!-- 仅在无封面图时显示渐变底色 -->
+      <div v-if="!post?.cover" class="post__banner-bg" />
+
+      <!-- 统一封面主图：铺满容器，彻底废弃 blur 副图补边方案 -->
       <img
         v-if="post?.cover"
         :src="resolveAsset(post.cover)"
         :alt="post.title"
         class="post__banner-cover"
       />
+      
       <div class="post__banner-grid" aria-hidden="true" />
       <div class="post__banner-overlay" />
+      
       <div class="container post__banner-inner" v-reveal>
         <RouterLink to="/articles" class="post__back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -389,7 +355,7 @@ onBeforeUnmount(() => {
         <p v-else class="post__missing-inline">文章不存在或已被移除</p>
       </div>
 
-      <!-- 文章顶部波浪效果（复刻 burgess-t.cn gentle-wave） -->
+      <!-- 文章顶部波浪效果（保持不变） -->
       <section class="main-hero-waves-area waves-area post-waves" aria-hidden="true">
         <svg class="waves-svg" preserveAspectRatio="none" shape-rendering="auto" viewBox="0 24 150 28" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -432,7 +398,16 @@ onBeforeUnmount(() => {
             <line x1="9" y1="13" x2="15" y2="13" />
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
-          <p>{{ post?.excerpt }}</p>
+          <div class="post__summary-body">
+            <p>{{ post?.excerpt }}</p>
+            <span class="post__summary-ai">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              摘要由 AI 生成
+            </span>
+          </div>
         </div>
 
         <div class="article-content" v-html="post?.content" />
@@ -584,11 +559,11 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 }
 
-/* ── banner ── */
 .post__banner {
   position: relative;
-  height: 46vh;
+  height: 42vh; /* 稍微增加高度比例，让画面更大气 */
   min-height: 320px;
+  max-height: 480px;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -596,40 +571,48 @@ onBeforeUnmount(() => {
 
 .post__banner-bg {
   position: absolute;
-  inset: -20% 0 0 0;
-  height: 140%;
+  inset: 0;
   background: linear-gradient(135deg, var(--hero-dark-1), var(--hero-dark-2), var(--hero-dark-3));
   will-change: transform;
   z-index: 0;
 }
 
-/* 文章封面大图（有封面时覆盖在渐变之上、网格与遮罩之下） */
+/* 封面主图：完整显示，不裁切，居中叠加在模糊层之上 */
 .post__banner-cover {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: cover; 
   z-index: 1;
 }
 
+/* 优化网格：降低透明度，避免干扰背景图细节 */
 .post__banner-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(96, 165, 250, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   pointer-events: none;
   z-index: 2;
+  opacity: 0.4; /* 调低网格存在感，让画面更干净 */
 }
 
+/* 核心修改：移除 backdrop-filter，改用平滑的渐变遮罩 */
 .post__banner-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.55));
+  /* 顶部微暗保留天空细节，中部适中，底部加深以突出白色文字和波浪边缘 */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.4) 40%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
   z-index: 3;
 }
 
@@ -640,14 +623,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 16px;
+  gap: 18px; /* 拉开排版间距 */
   color: #fff;
-  padding-top: 20px;
+  padding-top: 30px;
 }
 
 .post__back {
   position: absolute;
-  top: -10px;
+  top: 12px;
   left: 24px;
   display: inline-flex;
   align-items: center;
@@ -664,6 +647,7 @@ onBeforeUnmount(() => {
   transition:
     color var(--transition-fast),
     background-color var(--transition-fast);
+  z-index: 7;
 }
 
 .post__back:hover {
@@ -685,13 +669,13 @@ onBeforeUnmount(() => {
 }
 
 .post__title {
-  font-size: clamp(1.7rem, 5vw, 2.8rem);
+  font-size: clamp(1.8rem, 5vw, 3.2rem); /* 标题字号适度放大 */
   font-weight: 800;
-  line-height: 1.25;
+  line-height: 1.3;
   color: #fff;
-  max-width: 820px;
-  letter-spacing: -0.03em;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.3);
+  max-width: 880px;
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6); /* 增强文字阴影，抵抗复杂背景 */
 }
 
 .post__meta {
@@ -804,11 +788,41 @@ onBeforeUnmount(() => {
   margin-top: 2px;
 }
 
+.post__summary-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+}
+
 .post__summary p {
   font-size: 15px;
   line-height: 1.8;
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+/* ── AI 摘要标记 ── */
+.post__summary-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-style: normal;
+  color: var(--color-accent, #6366f1);
+  background: color-mix(in srgb, var(--color-accent, #6366f1) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #6366f1) 22%, transparent);
+  width: fit-content;
+}
+
+.post__summary-ai svg {
+  opacity: 0.85;
 }
 
 /* ── TOC ── */
@@ -1207,7 +1221,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .post__banner {
-    min-height: 280px;
+    min-height: 240px;
+    max-height: 320px;
   }
 
   /* 移动端隐藏波浪（与参考站一致） */

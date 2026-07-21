@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, nextTick } from 'vue'
+import { onMounted, ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { marked } from 'marked'
 import type { Category, PostInput } from '@/types/blog'
-import { createPost, getAdminPost, updatePost, uploadCover } from '@/api/admin'
+import { buildBlock, BLOCK_LEVEL, BLOCK_HINTS, type BlockKind } from '@/editor/blocks'
+import { enhanceCodeBlocks } from '@/utils/article'
+import { createPost, getAdminPost, updatePost, uploadCover, generateExcerpt } from '@/api/admin'
 import { getCategories } from '@/api/post'
 import { resolveAsset } from '@/api/request'
 
@@ -26,6 +27,7 @@ const categories = ref<Category[]>([])
 const uploading = ref(false)
 const uploadError = ref('')
 const saving = ref(false)
+const generating = ref(false)
 const error = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const contentInput = ref<HTMLTextAreaElement | null>(null)
@@ -33,56 +35,55 @@ const showHints = ref(false)
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-// ── Markdown 实时预览 ──
-function renderMd(src: string): string {
-  return marked.parse(src, { gfm: true, breaks: true }) as string
-}
-const renderedContent = computed(() => {
-  if (!content.value.trim()) return ''
-  return renderMd(content.value)
-})
+// ── 实时预览：直接渲染 HTML 源码，与文章页 .article-content 同源 ──
+// 正文以 HTML 存储/渲染，编辑器即「HTML 源码 + 所见即所得预览」。
+const renderedContent = computed(() => content.value)
 
-// ── 工具栏：在光标处插入 Markdown 语法 ──
-type FmtType = 'bold' | 'italic' | 'h3' | 'code' | 'inlinecode' | 'link' | 'image' | 'list' | 'quote'
-function insertFormat(type: FmtType) {
+const previewRef = ref<HTMLElement | null>(null)
+// 内容变化后重新增强代码块（macOS 窗口装饰 + 复制按钮），与文章页一致
+watch(
+  renderedContent,
+  () => {
+    nextTick(() => {
+      if (previewRef.value) enhanceCodeBlocks(previewRef.value)
+    })
+  },
+  { flush: 'post' },
+)
+
+// ── 工具栏：在光标处插入统一格式的 HTML 结构 ──
+function insertFormat(kind: BlockKind) {
   const ta = contentInput.value
   if (!ta) return
   const start = ta.selectionStart
   const end = ta.selectionEnd
   const selected = content.value.slice(start, end)
-  const cfg: Record<FmtType, { before: string; after: string; placeholder: string }> = {
-    bold: { before: '**', after: '**', placeholder: '加粗文字' },
-    italic: { before: '*', after: '*', placeholder: '斜体文字' },
-    h3: { before: '\n### ', after: '', placeholder: '小标题' },
-    code: { before: '\n```\n', after: '\n```\n', placeholder: '在此粘贴代码' },
-    inlinecode: { before: '`', after: '`', placeholder: '行内代码' },
-    link: { before: '[', after: '](https://)', placeholder: '链接文字' },
-    image: { before: '![', after: '](https://)', placeholder: '图片描述' },
-    list: { before: '\n- ', after: '', placeholder: '列表项' },
-    quote: { before: '\n> ', after: '', placeholder: '引用内容' },
+  const { text, selStart, selEnd } = buildBlock(kind, selected)
+
+  // 块级元素前后补换行，保证 HTML 源码结构清晰、可维护
+  const before = content.value.slice(0, start)
+  const after = content.value.slice(end)
+  let insertText = text
+  let addedLead = false
+  if (BLOCK_LEVEL.includes(kind)) {
+    if (before && !before.endsWith('\n')) {
+      insertText = '\n' + insertText
+      addedLead = true
+    }
+    if (after && !after.startsWith('\n')) {
+      insertText = insertText + '\n'
+    }
   }
-  const { before, after, placeholder } = cfg[type]
-  const text = selected || placeholder
-  const insertText = before + text + after
-  content.value = content.value.slice(0, start) + insertText + content.value.slice(end)
+  const base = before.length + (addedLead ? 1 : 0)
+  content.value = before + insertText + after
   nextTick(() => {
     ta.focus()
-    const pos = start + before.length + text.length
-    ta.setSelectionRange(pos, pos)
+    ta.setSelectionRange(base + selStart, base + selEnd)
   })
 }
 
-// 格式提示：语法 → 说明 → 渲染效果
-const hints: { syntax: string; desc: string; sample: string }[] = [
-  { syntax: '### 标题', desc: '三级标题（小标题）', sample: '### 这是小标题' },
-  { syntax: '**加粗** / *斜体*', desc: '强调文字', sample: '**重要** 与 *轻读*' },
-  { syntax: '<code>行内代码</code>', desc: '行内等宽代码', sample: '使用 <code>npm run dev</code>' },
-  { syntax: '<pre><code>代码块</code></pre>', desc: '多行代码块', sample: '<pre><code>\nconst a = 1\n</code></pre>' },
-  { syntax: '[文字](url)', desc: '超链接', sample: '[Stewie](https://stewie.fun)' },
-  { syntax: '![alt](url)', desc: '图片', sample: '![封面](https://x/y.png)' },
-  { syntax: '- 列表项', desc: '无序列表', sample: '- 第一项\n- 第二项' },
-  { syntax: '> 引用', desc: '块引用', sample: '> 一句话总结' },
-]
+// 格式提示：结构说明 → 渲染效果（数据来自 blocks.ts，单一事实来源）
+const blockHints = BLOCK_HINTS
 
 onMounted(async () => {
   try {
@@ -143,6 +144,24 @@ async function onFileChange(e: Event) {
 
 function removeCover() {
   cover.value = ''
+}
+
+// ── AI 生成摘要 ──
+async function aiGenerateExcerpt() {
+  if (!content.value.trim()) {
+    error.value = '请先填写正文，再生成摘要'
+    return
+  }
+  generating.value = true
+  error.value = ''
+  try {
+    const res = await generateExcerpt(title.value.trim(), content.value)
+    excerpt.value = res.excerpt
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '摘要生成失败'
+  } finally {
+    generating.value = false
+  }
 }
 
 async function save() {
@@ -214,32 +233,40 @@ async function save() {
               <input v-model="slug" class="field__control" placeholder="留空则自动生成，如 post-ab12cd" />
             </div>
             <div class="field" style="margin-top: 14px">
-              <label class="field__label">摘要</label>
+              <label class="field__label">
+                摘要
+                <button type="button" class="md-hint-toggle" :disabled="generating" @click="aiGenerateExcerpt">
+                  {{ generating ? '生成中…' : '✨ AI 生成' }}
+                </button>
+              </label>
               <textarea v-model="excerpt" class="field__control" rows="2"
                 placeholder="一句话摘要，显示在列表卡片上" />
             </div>
             <div class="field" style="margin-top: 14px">
               <label class="field__label">
-                正文 *（Markdown）
+                正文 *（HTML，与文章页渲染一致）
                 <button type="button" class="md-hint-toggle" @click="showHints = !showHints">
-                  {{ showHints ? '收起格式提示' : '格式提示' }}
+                  {{ showHints ? '收起格式说明' : '格式说明' }}
                 </button>
               </label>
 
-              <!-- Markdown 工具栏 -->
+              <!-- 工具栏：插入统一格式的 HTML 结构 -->
               <div class="md-toolbar">
                 <button type="button" class="md-tool" title="加粗" @click="insertFormat('bold')"><b>B</b></button>
                 <button type="button" class="md-tool" title="斜体" @click="insertFormat('italic')"><i>I</i></button>
                 <span class="md-tool__sep" />
-                <button type="button" class="md-tool" title="H3 小标题" @click="insertFormat('h3')">H3</button>
-                <button type="button" class="md-tool" title="代码块" @click="insertFormat('code')">&lt;/&gt;</button>
-                <button type="button" class="md-tool" title="行内代码" @click="insertFormat('inlinecode')">&lt;&gt;</button>
+                <button type="button" class="md-tool" title="H2 主标题" @click="insertFormat('h2')">H2</button>
+                <button type="button" class="md-tool" title="H3 子标题" @click="insertFormat('h3')">H3</button>
+                <span class="md-tool__sep" />
+                <button type="button" class="md-tool" title="代码块" @click="insertFormat('codeBlock')">&lt;/&gt;</button>
+                <button type="button" class="md-tool" title="行内代码" @click="insertFormat('inlineCode')">&lt;&gt;</button>
                 <span class="md-tool__sep" />
                 <button type="button" class="md-tool" title="链接" @click="insertFormat('link')">🔗</button>
                 <button type="button" class="md-tool" title="图片" @click="insertFormat('image')">🖼️</button>
                 <span class="md-tool__sep" />
-                <button type="button" class="md-tool" title="列表" @click="insertFormat('list')">☰</button>
+                <button type="button" class="md-tool" title="列表（要点加粗）" @click="insertFormat('list')">☰</button>
                 <button type="button" class="md-tool" title="引用" @click="insertFormat('quote')">❝</button>
+                <button type="button" class="md-tool" title="分割线" @click="insertFormat('hr')">➖</button>
               </div>
 
               <!-- 分栏：编辑 + 实时预览 -->
@@ -248,22 +275,22 @@ async function save() {
                   ref="contentInput"
                   v-model="content"
                   class="md-input"
-                  placeholder="在此用 Markdown 撰写正文…\n\n### 小标题\n**加粗**、*斜体*、<code>代码</code>\n<pre><code>\n代码块\n</pre></code>"
+                  placeholder="在此用 HTML 撰写正文…&#10;&#10;<h2>主标题</h2>&#10;<p>段落文字</p>&#10;<ul><li><strong>要点</strong>说明</li></ul>"
                   spellcheck="false"
                 />
                 <div class="md-preview">
-                  <div v-if="renderedContent" class="md-preview__body" v-html="renderedContent" />
+                  <div v-if="renderedContent" ref="previewRef" class="article-content md-preview__body" v-html="renderedContent" />
                   <div v-else class="md-preview__empty">实时预览将显示在这里…</div>
                 </div>
               </div>
 
-              <!-- 格式提示面板 -->
+              <!-- 格式说明面板 -->
               <div v-if="showHints" class="md-hints">
-                <p class="md-hints__tip">常用 Markdown 语法与渲染效果：</p>
-                <div v-for="h in hints" :key="h.syntax" class="md-hint">
-                  <code class="md-hint__syntax">{{ h.syntax }}</code>
-                  <span class="md-hint__desc">{{ h.desc }}</span>
-                  <span class="md-hint__render" v-html="renderMd(h.sample)" />
+                <p class="md-hints__tip">正文为 HTML（与文章页渲染完全一致），常用结构与预览效果：</p>
+                <div v-for="h in blockHints" :key="h.label" class="md-hint">
+                  <code class="md-hint__syntax">{{ h.sample }}</code>
+                  <span class="md-hint__desc">{{ h.label }}</span>
+                  <div class="md-hint__render article-content" v-html="h.sample" />
                 </div>
               </div>
             </div>
@@ -395,61 +422,7 @@ async function save() {
   color: var(--color-text-tertiary);
   font-size: 13px;
 }
-.md-preview__body {
-  font-size: 14px;
-  line-height: 1.75;
-  color: var(--color-text);
-}
-.md-preview__body :deep(h1),
-.md-preview__body :deep(h2),
-.md-preview__body :deep(h3) {
-  margin: 14px 0 8px;
-  font-family: var(--font-serif);
-  color: var(--color-heading);
-  line-height: 1.3;
-}
-.md-preview__body :deep(h1) { font-size: 22px; }
-.md-preview__body :deep(h2) { font-size: 19px; }
-.md-preview__body :deep(h3) { font-size: 16px; }
-.md-preview__body :deep(p) { margin: 8px 0; }
-.md-preview__body :deep(a) { color: var(--color-primary); }
-.md-preview__body :deep(ul),
-.md-preview__body :deep(ol) { padding-left: 22px; margin: 8px 0; }
-.md-preview__body :deep(li) { margin: 3px 0; }
-.md-preview__body :deep(blockquote) {
-  margin: 10px 0;
-  padding: 6px 14px;
-  border-left: 3px solid var(--color-primary);
-  color: var(--color-text-secondary);
-  background: var(--color-bg-soft);
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-.md-preview__body :deep(code) {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: var(--color-bg-soft);
-  color: var(--color-code, #d63384);
-}
-.md-preview__body :deep(pre) {
-  margin: 10px 0;
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  background: var(--color-bg-inverse, #1e293b);
-  overflow-x: auto;
-}
-.md-preview__body :deep(pre code) {
-  padding: 0;
-  background: transparent;
-  color: #e2e8f0;
-  font-size: 12.5px;
-}
-.md-preview__body :deep(img) {
-  max-width: 100%;
-  border-radius: var(--radius);
-  margin: 8px 0;
-}
+/* 预览区直接复用全局 .article-content 样式，保证与文章页渲染一致（单一事实来源） */
 
 /* ── 格式提示面板 ── */
 .md-hints {
@@ -491,17 +464,9 @@ async function save() {
 }
 .md-hint__render {
   grid-column: 2;
-  font-size: 13px;
-  color: var(--color-text);
   margin-top: -2px;
-}
-.md-hint__render :deep(code) {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--color-bg);
-  color: var(--color-code, #d63384);
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .cover-preview {

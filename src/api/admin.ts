@@ -34,6 +34,14 @@ export function deletePost(id: number) {
   return request<void>(`/admin/posts/${id}`, { method: 'DELETE' })
 }
 
+/* ── AI 摘要生成 ── */
+export function generateExcerpt(title: string, content: string) {
+  return request<{ excerpt: string }>('/admin/posts/generate-excerpt', {
+    method: 'POST',
+    body: JSON.stringify({ title, content }),
+  })
+}
+
 /* ── 封面上传（multipart）── */
 export async function uploadCover(file: File): Promise<UploadResult> {
   const token = getToken()

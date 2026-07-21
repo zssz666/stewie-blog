@@ -78,6 +78,13 @@ const magneticStyle = computed(() => ({
       <span class="post-card__category">{{ post.category }}</span>
       <h3 class="post-card__title">{{ post.title }}</h3>
       <p class="post-card__excerpt">{{ post.excerpt }}</p>
+      <span class="post-card__ai-badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        摘要由 AI 生成
+      </span>
       <div class="post-card__meta">
         <span class="post-card__meta-item">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -320,6 +327,32 @@ const magneticStyle = computed(() => ({
   -webkit-box-orient: vertical;
   overflow: hidden;
   transition: opacity 0.3s var(--ease), transform 0.35s var(--ease-spring);
+}
+
+/* ── AI 摘要标记 ── */
+.post-card__ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-accent, #6366f1);
+  background: color-mix(in srgb, var(--color-accent, #6366f1) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #6366f1) 22%, transparent);
+  width: fit-content;
+  transition: opacity 0.3s var(--ease), transform 0.35s var(--ease-spring);
+}
+
+.post-card__ai-badge svg {
+  opacity: 0.85;
+}
+
+.post-card:hover .post-card__ai-badge {
+  background: color-mix(in srgb, var(--color-accent, #6366f1) 16%, transparent);
 }
 
 .post-card__meta {
