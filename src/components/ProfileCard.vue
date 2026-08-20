@@ -2,7 +2,6 @@
 import { onMounted, ref } from 'vue'
 import type { Author } from '@/types/blog'
 import { getAuthor } from '@/api/author'
-import { useTilt } from '@/composables/useTilt'
 
 // 先给占位值，避免模板在接口返回前访问 author.name 报错
 const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
@@ -21,17 +20,10 @@ const socialIcons: Record<string, string> = {
   Email: 'M2 4h20v16H2V4zm10 9L4 7v10h16V7l-8 6z',
 }
 
-const { transform, isActive, handleMove, handleLeave } = useTilt(5)
 </script>
 
 <template>
-  <div
-    class="profile-card"
-    :class="{ 'is-tilting': isActive }"
-    :style="{ transform }"
-    @mousemove="handleMove"
-    @mouseleave="handleLeave"
-  >
+  <div class="profile-card">
     <div class="profile-card__decor" aria-hidden="true" />
     <div class="profile-card__avatar">
       {{ author.name.charAt(0) }}
@@ -74,19 +66,19 @@ const { transform, isActive, handleMove, handleLeave } = useTilt(5)
   text-align: center;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  transform-style: preserve-3d;
   transition:
     transform 0.4s var(--ease),
     box-shadow var(--transition);
 }
 
-/* 鼠标移出后平滑回正；移动中关闭过渡以保证跟手 */
-.profile-card.is-tilting {
-  transition: box-shadow var(--transition);
+.profile-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
-.profile-card:hover {
-  box-shadow: var(--shadow-md);
+.profile-card__social:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .profile-card__decor {

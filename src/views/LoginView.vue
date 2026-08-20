@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSeo } from '@/composables/useSeo'
+
+// 登录页无收录价值：noindex 防止稀释站点整体质量评分
+useSeo({
+  title: '登录',
+  description: '登录 Stewie 的前端实验室管理后台。',
+  path: '/login',
+  noindex: true,
+})
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -11,10 +20,6 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-
-onMounted(() => {
-  document.title = '登录 · Stewie 的博客'
-})
 
 async function onSubmit() {
   error.value = ''
@@ -118,7 +123,7 @@ async function onSubmit() {
   font-weight: 800;
   font-size: 20px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  box-shadow: var(--shadow-primary);
   margin-bottom: 16px;
 }
 

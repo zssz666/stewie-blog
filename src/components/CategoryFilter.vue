@@ -58,10 +58,15 @@ function select(category: string) {
   background: var(--color-primary-soft);
 }
 
+.category-filter__pill:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .category-filter__pill--active {
   color: #fff;
   background: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: var(--shadow-primary);
 }
 
 .category-filter__pill--active:hover {

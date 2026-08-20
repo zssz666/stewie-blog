@@ -25,13 +25,35 @@ const loading = ref(true)
 // 占位值，接口返回前模板不会报错
 const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
 
-// 每篇文章独立 SEO：标题 / canonical / og 随文章切换响应式更新
+// 每篇文章独立 SEO：标题 / canonical / og / 结构化数据随文章切换响应式更新
 useSeo({
   title: computed(() => post.value?.title),
   description: computed(() => post.value?.excerpt),
   path: computed(() => (post.value ? `/post/${post.value.slug}` : undefined)),
   image: computed(() => (post.value?.cover ? resolveAsset(post.value.cover) : undefined)),
   type: 'article',
+  keywords: computed(() => post.value?.tags),
+  // article:published_time 要求 ISO 8601：Date 字符串序列化正好是标准格式
+  publishedTime: computed(() => (post.value ? new Date(post.value.date).toISOString() : undefined)),
+  // BlogPosting 结构化数据：帮助搜索引擎生成富摘要（标题/日期/作者/头图）
+  jsonLd: computed(() =>
+    post.value
+      ? [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BlogPosting',
+            headline: post.value.title,
+            description: post.value.excerpt,
+            datePublished: new Date(post.value.date).toISOString(),
+            dateModified: new Date(post.value.date).toISOString(),
+            image: post.value.cover ? resolveAsset(post.value.cover) : 'https://stewie.fun/og-image.png',
+            author: { '@type': 'Person', name: 'Stewie', url: 'https://stewie.fun/about' },
+            keywords: post.value.tags?.join(', '),
+            mainEntityOfPage: `https://stewie.fun/post/${post.value.slug}`,
+          },
+        ]
+      : [],
+  ),
 })
 
 const formattedDate = computed(() => {
@@ -305,9 +327,8 @@ onBeforeUnmount(() => {
     <div class="reading-progress" :style="{ transform: `scaleX(${progress})` }" />
 
     <!-- 顶部 banner -->
-    <!-- 顶部 banner -->
     <header ref="bannerRef" class="post__banner">
-      <!-- 仅在无封面图时显示渐变底色 -->
+      <!-- 无封面：实验坐标纸兜底背景（双层网格 + 主题渐变，带视差） -->
       <div v-if="!post?.cover" class="post__banner-bg" />
 
       <!-- 统一封面主图：铺满容器，彻底废弃 blur 副图补边方案 -->
@@ -317,9 +338,11 @@ onBeforeUnmount(() => {
         :alt="post.title"
         class="post__banner-cover"
       />
-      
-      <div class="post__banner-grid" aria-hidden="true" />
-      <div class="post__banner-overlay" />
+
+      <!-- 白色微网格仅服务封面图（叠图上的制图质感），坐标纸场景由 banner-bg 自带 -->
+      <div v-if="post?.cover" class="post__banner-grid" aria-hidden="true" />
+      <!-- 无封面时切换轻遮罩：露坐标纸纹理，仅压深底部文字区 -->
+      <div class="post__banner-overlay" :class="{ 'post__banner-overlay--plain': !post?.cover }" />
       
       <div class="container post__banner-inner" v-reveal>
         <RouterLink to="/articles" class="post__back">
@@ -531,7 +554,10 @@ onBeforeUnmount(() => {
                 `toc__item--h${item.level}`,
                 { 'toc__item--active': activeTocId === item.id },
               ]"
+              role="button"
+              tabindex="0"
               @click="scrollToHeading(item.id)"
+              @keydown.enter="scrollToHeading(item.id)"
             >
               {{ item.text }}
             </li>
@@ -556,7 +582,7 @@ onBeforeUnmount(() => {
   transform-origin: left center;
   z-index: 200;
   transition: transform 0.05s linear;
-  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .post__banner {
@@ -567,12 +593,33 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   overflow: hidden;
+  /* 视差位移期间 banner 顶部的兜底色（与坐标纸基底同源，无缝承接） */
+  background: var(--hero-dark-2);
 }
 
 .post__banner-bg {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--hero-dark-1), var(--hero-dark-2), var(--hero-dark-3));
+  /* 高于容器 30%：视差位移期间不露边（顶部余量由 banner 兜底色承接） */
+  top: -15%;
+  left: 0;
+  right: 0;
+  height: 130%;
+  /* 实验坐标纸（无封面文章的兜底视觉，呼应首页图纸主题）：
+     右上主题色晕染 → 主网格（每 5 格一条粗线）→ 细网格 → 主题渐变基底 */
+  background-image:
+    radial-gradient(ellipse 58% 80% at 86% 6%, color-mix(in srgb, var(--hero-accent) 15%, transparent), transparent 72%),
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(135deg, var(--hero-dark-1), var(--hero-dark-2), var(--hero-dark-3));
+  background-size:
+    100% 100%,
+    calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
+    calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size),
+    100% 100%;
   will-change: transform;
   z-index: 0;
 }
@@ -616,6 +663,16 @@ onBeforeUnmount(() => {
   z-index: 3;
 }
 
+/* 无封面：轻遮罩——上半部露出坐标纸纹理，向下压深保证白字可读 */
+.post__banner-overlay--plain {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(10, 20, 24, 0.28) 52%,
+    rgba(10, 20, 24, 0.62) 100%
+  );
+}
+
 .post__banner-inner {
   position: relative;
   z-index: 6;
@@ -626,6 +683,8 @@ onBeforeUnmount(() => {
   gap: 18px; /* 拉开排版间距 */
   color: #fff;
   padding-top: 30px;
+  /* 轻遮罩下（坐标纸底）的文字可读性兜底 */
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.35);
 }
 
 .post__back {
@@ -653,6 +712,11 @@ onBeforeUnmount(() => {
 .post__back:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
+}
+
+.post__back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 .post__tag {
@@ -887,6 +951,12 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.toc__item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-left-color: var(--color-primary);
+}
+
 /* ── 底部互动 ── */
 .post__actions {
   display: flex;
@@ -920,6 +990,12 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
   border-color: var(--color-primary);
   transform: translateY(-1px);
+}
+
+.like-btn:focus-visible,
+.comment-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .like-btn--active {
@@ -1056,6 +1132,11 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 
+.comment__reply:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .comments__empty {
   margin-bottom: 32px;
   font-size: 14px;
@@ -1161,6 +1242,11 @@ onBeforeUnmount(() => {
 .comment-form__submit:hover:not(:disabled) {
   background: var(--color-primary-hover);
   transform: translateY(-1px);
+}
+
+.comment-form__submit:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .comment-form__submit:disabled {

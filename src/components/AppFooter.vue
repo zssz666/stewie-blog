@@ -25,7 +25,7 @@ const socialIcons: Record<string, string> = {
 
 <template>
   <footer class="footer">
-    <!-- 顶部海浪过渡 -->
+    <!-- 顶部波形过渡（示波器海浪：波浪 + 中基线） -->
     <section class="footer-waves waves-area" aria-hidden="true">
       <svg class="waves-svg" preserveAspectRatio="none" shape-rendering="auto" viewBox="0 24 150 28" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -60,7 +60,10 @@ const socialIcons: Record<string, string> = {
       <div class="footer__left">
         <div class="footer__brand-row">
           <span class="footer__logo">S</span>
-          <p class="footer__brand">Stewie</p>
+          <div class="footer__brand-text">
+            <p class="footer__brand">STEWIE<em class="footer__brand-sub">.LAB</em></p>
+            <p class="footer__brand-cn">实验仍在继续</p>
+          </div>
         </div>
         <p class="footer__desc">{{ author.bio }}</p>
       </div>
@@ -78,8 +81,8 @@ const socialIcons: Record<string, string> = {
             :title="social.label"
           >
             <svg
-              width="18"
-              height="18"
+              width="17"
+              height="17"
               viewBox="0 0 24 24"
               fill="currentColor"
               aria-hidden="true"
@@ -91,7 +94,7 @@ const socialIcons: Record<string, string> = {
       </div>
     </div>
     <div class="container footer__bottom">
-      <span>© {{ year }} Stewie</span>
+      <span class="footer__copy">© {{ year }} STEWIE'S LAB</span>
       <a
         class="footer__beian"
         href="https://beian.miit.gov.cn/"
@@ -110,7 +113,7 @@ const socialIcons: Record<string, string> = {
   position: relative;
 }
 
-/* ── 顶部海浪（复刻参考站 gentle-wave） ── */
+/* ── 顶部波形（示波器海浪） ── */
 .footer-waves {
   position: relative;
   height: 90px;
@@ -123,21 +126,28 @@ const socialIcons: Record<string, string> = {
   height: 100%;
 }
 
-/* 填充色用页脚底色，营造"页脚色吞噬正文"的优雅过渡（与 hero 一致） */
+/* 填充色用页脚底色，营造"波形吞噬正文"的优雅过渡（与 hero 图纸一致） */
 .footer-waves .parallax use {
   fill: var(--color-bg-soft);
 }
 
-.footer::before {
+/* 示波器中基线：一条水平虚线穿过浪区，波浪即信号 */
+.footer-waves::after {
   content: '';
   position: absolute;
-  top: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 2px;
-  background: linear-gradient(to right, transparent, var(--color-primary), transparent);
-  border-radius: 1px;
+  top: 26px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    var(--color-border-strong) 0 8px,
+    transparent 8px 16px
+  );
+  background-size: 16px 1px;
+  background-repeat: repeat-x;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .footer__inner {
@@ -153,28 +163,56 @@ const socialIcons: Record<string, string> = {
 .footer__brand-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
+/* 与导航一致的制图图框 Logo */
 .footer__logo {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  width: 40px;
+  height: 40px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-heading);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-heading);
   border-radius: var(--radius-sm);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  outline: 1px dashed color-mix(in srgb, var(--color-heading) 35%, transparent);
+  outline-offset: -6px;
+}
+
+.footer__brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .footer__brand {
-  font-size: 20px;
-  font-weight: 800;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: var(--color-heading);
-  letter-spacing: -0.02em;
+}
+
+.footer__brand-sub {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-primary);
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+.footer__brand-cn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--color-text-tertiary);
 }
 
 .footer__desc {
@@ -198,6 +236,7 @@ const socialIcons: Record<string, string> = {
   justify-content: flex-end;
 }
 
+/* 社交按钮：仪器按键（方描边） */
 .footer__social {
   display: grid;
   place-items: center;
@@ -222,28 +261,6 @@ const socialIcons: Record<string, string> = {
   box-shadow: var(--shadow-primary);
 }
 
-.footer__top {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-sm);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast),
-    transform var(--transition-fast);
-}
-
-.footer__top:hover {
-  background: var(--color-primary);
-  color: #fff;
-  transform: translateY(-1px);
-}
-
 .footer__bottom {
   display: flex;
   flex-direction: column;
@@ -253,20 +270,39 @@ const socialIcons: Record<string, string> = {
   padding-bottom: 30px;
   border-top: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
   text-align: center;
-  letter-spacing: 0.02em;
 }
 
 .footer__beian {
   color: var(--color-text-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 .footer__beian:hover {
   color: var(--color-primary);
+}
+
+.footer__beian:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.footer__social:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-waves {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -283,7 +319,8 @@ const socialIcons: Record<string, string> = {
   }
 
   .footer__socials,
-  .footer__top {    justify-content: flex-start;
+  .footer__top {
+    justify-content: flex-start;
     align-self: flex-start;
   }
 }

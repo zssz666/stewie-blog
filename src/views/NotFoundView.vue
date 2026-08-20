@@ -2,9 +2,11 @@
 import { useRouter } from 'vue-router'
 import { useSeo } from '@/composables/useSeo'
 
+// 404 页无收录价值：noindex 防止搜录引擎登记死链
 useSeo({
   title: '页面未找到',
   description: '你访问的页面不存在或已被移动。',
+  noindex: true,
 })
 const router = useRouter()
 </script>
@@ -51,15 +53,15 @@ const router = useRouter()
   position: absolute;
   inset: -20% 0 0 0;
   height: 140%;
-  background: linear-gradient(135deg, #0f172a, #1e1b4b, #312e81);
+  background: linear-gradient(135deg, var(--hero-dark-1), var(--hero-dark-2), var(--hero-dark-3));
 }
 
 .notfound__grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(96, 165, 250, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.05) 1px, transparent 1px);
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
@@ -79,7 +81,7 @@ const router = useRouter()
   line-height: 1;
   margin: 0;
   letter-spacing: 0.04em;
-  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -125,14 +127,14 @@ const router = useRouter()
 }
 
 .notfound__btn--primary {
-  background: var(--color-primary, #3b82f6);
+  background: var(--color-primary);
   color: #fff;
   box-shadow: var(--shadow-primary, 0 8px 24px rgba(59, 130, 246, 0.3));
 }
 
 .notfound__btn--primary:hover {
   transform: translateY(-2px);
-  background: var(--color-primary-hover, #2563eb);
+  background: var(--color-primary-hover);
 }
 
 .notfound__btn--ghost {
@@ -144,6 +146,11 @@ const router = useRouter()
 .notfound__btn--ghost:hover {
   border-color: rgba(255, 255, 255, 0.4);
   color: #fff;
+}
+
+.notfound__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

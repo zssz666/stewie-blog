@@ -1,68 +1,99 @@
 /* ============================================================
-   Stewie Blog · Design Token System
-   设计令牌系统 —— 阅读型博客配色，柔和优雅、明暗双主题
+   Stewie's Lab · Design Token System
+   设计令牌 —— 「Stewie 的实验室」实验登记簿视觉系统
+   概念：博客 = 实验登记簿，踩坑文 = 实验记录（EXP-XXX）
+   浅色主题 = 图纸底稿（Draft）  深色主题 = 晒蓝图（Blueprint）
+   安全橙编码「坑 / 警示 / 交互」，制图蓝承担链接与信息，
+   实验绿编码「修复 / 成功」。
    ============================================================ */
 
 :root {
-  /* ── 背景层次 ── */
-  --color-bg: #fafbfc;
-  --color-bg-soft: #f4f6f8;
-  --color-bg-mute: #e8ecf0;
-  --color-surface: #ffffff;
-  --color-surface-hover: #f8fafc;
+  /* ── 实验室语义色板 ── */
+  --paper: #f4f6f3;          /* 坐标纸冷白 */
+  --ink: #1d2a32;            /* 制图墨（青黑） */
+  --hazard: #e0561d;         /* 安全橙：坑 / 警示 / 品牌 */
+  --draft-blue: #33687f;     /* 制图蓝：链接 / 信息 */
+  --fix-green: #22795a;      /* 实验绿：修复 / 成功 */
+  --scope: #22795a;          /* 示波器轨迹色 */
+
+  /* ── 背景层次（纸面系统） ── */
+  --color-bg: var(--paper);
+  --color-bg-soft: #ecf0ed;
+  --color-bg-mute: #dfe5e1;
+  --color-surface: #fcfdfc;
+  --color-surface-hover: #f3f6f3;
   --color-surface-raised: #ffffff;
+  --color-surface-2: #eef2ef;
 
   /* ── 文字层次 ── */
-  --color-heading: #0f172a;
-  --color-text: #334155;
-  --color-text-secondary: #64748b;
-  --color-text-tertiary: #94a3b8;
+  --color-heading: var(--ink);
+  --color-text: #3a4a52;
+  --color-text-secondary: #5e6e76;
+  --color-text-tertiary: #8ca0a8;
 
   /* ── 边框 ── */
-  --color-border: #e8ecf0;
-  --color-border-hover: #cbd5e1;
-  --color-border-strong: #94a3b8;
+  --color-border: #d9e0db;
+  --color-border-hover: #b7c4bc;
+  --color-border-strong: #8ca0a8;
 
-  /* ── 主色（稳重蓝） ── */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-active: #1e40af;
-  --color-primary-soft: rgba(37, 99, 235, 0.08);
-  --color-primary-softer: rgba(37, 99, 235, 0.04);
+  /* ── 主色（安全橙） ── */
+  --color-primary: var(--hazard);
+  --color-primary-hover: #c24511;
+  --color-primary-active: #a63a0d;
+  --color-primary-soft: rgba(224, 86, 29, 0.09);
+  --color-primary-softer: rgba(224, 86, 29, 0.05);
 
-  /* ── 强调色（暖琥珀点缀） ── */
-  --color-accent: #f59e0b;
-  --color-accent-hover: #d97706;
-  --color-accent-soft: rgba(245, 158, 11, 0.1);
+  /* ── 强调色（制图蓝） ── */
+  --color-accent: var(--draft-blue);
+  --color-accent-hover: #265668;
+  --color-accent-soft: rgba(51, 104, 127, 0.08);
 
   /* ── 语义色 ── */
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #0ea5e9;
+  --color-success: var(--fix-green);
+  --color-warning: #d9900f;
+  --color-error: #c93a2e;
+  --color-info: var(--draft-blue);
 
-  /* ── Hero 暗色渐变 ── */
-  --hero-dark-1: #0c1424;
-  --hero-dark-2: #142039;
-  --hero-dark-3: #1e2d4a;
-  --hero-accent: #2563eb;
+  /* ── 二次元贴纸点缀色（仅装饰：吉祥物 / 拟声词 / 星尘，不进主 UI） ── */
+  --sticker-pink: #ff8fae;    /* 腮红 / 爱心 / 「叮！」 */
+  --sticker-sky: #7cc4ee;     /* 问号 / 信息气泡 */
+  --sticker-lemon: #ffcf4d;   /* 星星 / 闪电 / 「BOOM!」 */
+  --sticker-mint: #5fd4ae;    /* 修复火花 / 勾 */
+  --sticker-violet: #a88ff0;  /* 稀有度 SR / 装饰 */
 
-  /* ── 圆角系统 ── */
-  --radius-xs: 3px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* ── 实验场景渐变（晒图兜底） ── */
+  --hero-dark-1: #dfe7e2;
+  --hero-dark-2: #eef2ef;
+  --hero-dark-3: #f4f6f3;
+  --hero-accent: var(--hazard);
+
+  /* ── 坐标纸网格 ── */
+  --grid-line: rgba(29, 42, 50, 0.075);
+  --grid-line-strong: rgba(29, 42, 50, 0.14);
+  --grid-size: 28px;
+
+  /* ── 圆角系统（制图克制风） ── */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-full: 999px;
 
-  /* ── 阴影系统（更精致的层次） ── */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.05);
-  --shadow-xl: 0 20px 48px rgba(15, 23, 42, 0.1), 0 8px 16px rgba(15, 23, 42, 0.06);
-  --shadow-hover: 0 16px 40px rgba(37, 99, 235, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
-  --shadow-primary: 0 8px 24px rgba(37, 99, 235, 0.18);
+  /* ── 阴影系统（干练、低透明墨色） ── */
+  --shadow-xs: 0 1px 2px rgba(29, 42, 50, 0.05);
+  --shadow-sm: 0 1px 3px rgba(29, 42, 50, 0.07);
+  --shadow-md: 0 3px 10px rgba(29, 42, 50, 0.08);
+  --shadow-lg: 0 10px 24px rgba(29, 42, 50, 0.1);
+  --shadow-xl: 0 18px 40px rgba(29, 42, 50, 0.12);
+  --shadow-hover: 0 12px 28px rgba(29, 42, 50, 0.13);
+  --shadow-primary: 0 6px 18px rgba(224, 86, 29, 0.22);
+
+  /* ── 焦点环 ── */
+  --ring: 0 0 0 3px var(--color-primary-soft);
+
+  /* ── 导航毛玻璃 ── */
+  --nav-blur: saturate(140%) blur(14px);
 
   /* ── 尺寸 ── */
   --max-width: 1140px;
@@ -83,13 +114,18 @@
   --content-gap: 48px;
 
   /* ── 字体系统 ── */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'Source Han Sans CN', sans-serif;
-  --font-serif: 'Lora', Georgia, 'Songti SC', 'SimSun', serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
-  /* 导航栏艺术字体：拉丁用 Lora 衬线，中文回退到思源宋体，营造优雅编辑感 */
-  --font-nav: 'Lora', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  /* 正文：IBM Plex Sans（工程血统）+ 中文黑体栈 */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans CN',
+    sans-serif;
+  /* 展示：霞鹜文楷（手写楷体 = 白板笔迹感），衬线语义沿用 */
+  --font-serif: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', Georgia, serif;
+  --font-display: 'LXGW WenKai', 'Kaiti SC', 'STKaiti', 'KaiTi', serif;
+  /* 等宽：IBM Plex Mono（编号 / 日期 / 代码 / 器材标签） */
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', 'SF Mono',
+    Consolas, monospace;
+  /* 导航：仪器面板标签 = 等宽 */
+  --font-nav: var(--font-mono);
 
   /* ── 字号层级 ── */
   --fs-xs: 0.75rem;
@@ -103,47 +139,70 @@
 }
 
 /* ============================================================
-   深色主题
+   深色主题 · 晒蓝图（Blueprint）
    ============================================================ */
 html.dark {
-  --color-bg: #0a0f1c;
-  --color-bg-soft: #111827;
-  --color-bg-mute: #1f2937;
-  --color-surface: #131a2a;
-  --color-surface-hover: #1a2336;
-  --color-surface-raised: #1a2336;
+  --paper: #0d1a22;
+  --ink: #dee9ec;
+  --hazard: #ff7a3b;
+  --draft-blue: #6fb4ce;
+  --fix-green: #3ec08f;
+  --scope: #3ec08f;
 
-  --color-heading: #f1f5f9;
-  --color-text: #cbd5e1;
-  --color-text-secondary: #94a3b8;
-  --color-text-tertiary: #64748b;
+  --color-bg: var(--paper);
+  --color-bg-soft: #12242e;
+  --color-bg-mute: #1b3240;
+  --color-surface: #12212b;
+  --color-surface-hover: #172b37;
+  --color-surface-raised: #172b37;
+  --color-surface-2: #152731;
 
-  --color-border: #1f2937;
-  --color-border-hover: #334155;
-  --color-border-strong: #475569;
+  --color-heading: var(--ink);
+  --color-text: #aec2cb;
+  --color-text-secondary: #7e98a3;
+  --color-text-tertiary: #5d7580;
 
-  --color-primary: #60a5fa;
-  --color-primary-hover: #93c5fd;
-  --color-primary-active: #bfdbfe;
-  --color-primary-soft: rgba(96, 165, 250, 0.12);
-  --color-primary-softer: rgba(96, 165, 250, 0.06);
+  --color-border: #1d3140;
+  --color-border-hover: #2c4657;
+  --color-border-strong: #43606f;
 
-  --color-accent: #fbbf24;
-  --color-accent-hover: #fcd34d;
-  --color-accent-soft: rgba(251, 191, 36, 0.12);
+  --color-primary: var(--hazard);
+  --color-primary-hover: #ff9257;
+  --color-primary-active: #ffad7c;
+  --color-primary-soft: rgba(255, 122, 59, 0.12);
+  --color-primary-softer: rgba(255, 122, 59, 0.07);
 
-  --hero-dark-1: #050810;
-  --hero-dark-2: #0a1220;
-  --hero-dark-3: #111e36;
-  --hero-accent: #60a5fa;
+  --color-accent: var(--draft-blue);
+  --color-accent-hover: #93c8dc;
+  --color-accent-soft: rgba(111, 180, 206, 0.1);
+
+  --color-success: var(--fix-green);
+  --color-warning: #e9b44c;
+  --color-error: #e85d50;
+  --color-info: var(--draft-blue);
+
+  /* 贴纸点缀色：晒图面下提亮一档，保持糖果感 */
+  --sticker-pink: #ffa8c2;
+  --sticker-sky: #9cd4f5;
+  --sticker-lemon: #ffe082;
+  --sticker-mint: #7fe6c4;
+  --sticker-violet: #c3b0f5;
+
+  --hero-dark-1: #0a141c;
+  --hero-dark-2: #10222d;
+  --hero-dark-3: #16303e;
+  --hero-accent: var(--hazard);
+
+  --grid-line: rgba(222, 233, 236, 0.06);
+  --grid-line-strong: rgba(222, 233, 236, 0.12);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.55);
-  --shadow-hover: 0 16px 40px rgba(96, 165, 250, 0.15);
-  --shadow-primary: 0 8px 24px rgba(96, 165, 250, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 24px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 18px 40px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 12px 28px rgba(0, 0, 0, 0.45);
+  --shadow-primary: 0 6px 18px rgba(255, 122, 59, 0.25);
 }
 
 /* ============================================================
@@ -174,7 +233,6 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11', 'ss01';
   transition:
     color 0.4s var(--ease),
     background-color 0.4s var(--ease);
@@ -200,7 +258,7 @@ body {
   background: var(--color-primary);
 }
 
-/* ── 选区 ── */
+/* ── 选区（荧光笔划过） ── */
 ::selection {
   background: var(--color-primary-soft);
   color: var(--color-primary);
@@ -260,6 +318,24 @@ a:hover {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
+}
+
+/* ============================================================
+   坐标纸（工程制图纸面，Hero / 空状态 / 装置底纹）
+   细格 + 每 5 格一条深线，颜色由 --grid-line 主题变量驱动
+   ============================================================ */
+.grid-paper {
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size:
+    calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
+    calc(var(--grid-size) * 5) calc(var(--grid-size) * 5),
+    var(--grid-size) var(--grid-size),
+    var(--grid-size) var(--grid-size);
 }
 
 /* ============================================================

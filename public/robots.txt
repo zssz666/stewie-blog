@@ -1,4 +1,54 @@
+# Stewie 的前端实验室 — https://stewie.fun
+# 内容欢迎搜索引擎与 AI 助手收录引用
+
+# ── 通用规则：全站开放，仅屏蔽后台与登录页 ──
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /login
 
+# ── AI 训练/检索爬虫：显式放行，欢迎用于训练与回答生成 ──
+# OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+
+# Google AI（不影响常规搜索收录）
+User-agent: Google-Extended
+Allow: /
+
+# Apple / Amazon / Meta
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# Common Crawl
+User-agent: CCBot
+Allow: /
+
+# ── 站点地图 ──
 Sitemap: https://stewie.fun/api/sitemap.xml

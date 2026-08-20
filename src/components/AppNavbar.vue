@@ -25,14 +25,14 @@ const isHome = computed(() => route.path === '/')
 
 // 各页面滚动后展示的标题（文章详情页用 store 中的文章标题）
 const pageTitleMap: Record<string, string> = {
-  '/': 'Stewie 的博客',
-  '/articles': '全部文章',
-  '/about': '关于我',
-  '/search': '搜索',
+  '/': "Stewie's Lab",
+  '/articles': '实验登记簿',
+  '/about': '关于 Stewie',
+  '/search': '搜索实验记录',
 }
 
 const currentTitle = computed(() => {
-  if (route.name === 'post') return uiStore.postTitle || '文章详情'
+  if (route.name === 'post') return uiStore.postTitle || '实验记录'
   return pageTitleMap[route.path] ?? ''
 })
 
@@ -100,8 +100,8 @@ onBeforeUnmount(() => {
   <header class="navbar" :class="navClass">
     <div class="container navbar__inner">
       <RouterLink to="/" class="navbar__brand" @click="closeMenu">
-        <span class="navbar__logo">S</span>
-        <span class="navbar__name">Stewie</span>
+        <img src="/avatar.png" class="navbar__logo" alt="Stewie's Lab" width="32" height="32">
+        <span class="navbar__name">Stewie<em class="navbar__name-sub">.LAB</em></span>
       </RouterLink>
 
       <Transition name="nav-title">
@@ -116,20 +116,21 @@ onBeforeUnmount(() => {
 
       <nav class="navbar__nav" :class="{ 'navbar__nav--hidden': showTitle }">
         <RouterLink
-          v-for="link in navLinks"
+          v-for="(link, i) in navLinks"
           :key="link.to"
           :to="link.to"
           class="navbar__link"
         >
-          {{ link.label }}
+          <span class="navbar__ch">CH{{ i + 1 }}</span>
+          <span class="navbar__link-text">{{ link.label }}</span>
         </RouterLink>
       </nav>
 
       <div class="navbar__actions">
         <!-- 搜索入口：始终可见（公开搜索） -->
         <form class="navbar__search" role="search" @submit.prevent="goSearch">
-          <button type="submit" class="navbar__search-btn" aria-label="搜索文章">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <button type="submit" class="navbar__search-btn" aria-label="搜索实验记录">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
@@ -138,15 +139,15 @@ onBeforeUnmount(() => {
             v-model="searchQuery"
             class="navbar__search-input"
             type="search"
-            placeholder="搜索文章…"
-            aria-label="搜索文章"
+            placeholder="搜索实验记录…"
+            aria-label="搜索实验记录"
             autocomplete="off"
           />
         </form>
 
         <!-- 登录态：管理后台入口 + 头像 + 用户名 + 退出（仅作者本人会话可见） -->
         <template v-if="authStore.isLoggedIn">
-          <RouterLink to="/admin" class="navbar__admin-link">管理后台</RouterLink>
+          <RouterLink to="/admin" class="navbar__admin-link">控制台</RouterLink>
           <div class="navbar__user">
             <span class="navbar__avatar">{{ avatarText }}</span>
             <span class="navbar__username">{{ displayName }}</span>
@@ -158,12 +159,13 @@ onBeforeUnmount(() => {
         <button
           class="theme-toggle"
           type="button"
-          :aria-label="themeStore.isDark ? '切换到浅色模式' : '切换到深色模式'"
+          :aria-label="themeStore.isDark ? '切换到底稿模式（浅色）' : '切换到晒图模式（深色）'"
+          :title="themeStore.isDark ? '晒图中 · 点击回到底稿' : '底稿 · 点击晒成蓝图'"
           @click="themeStore.toggle()"
         >
           <Transition name="icon-swap" mode="out-in">
-            <IconSun v-if="themeStore.isDark" key="sun" :size="18" />
-            <IconMoon v-else key="moon" :size="18" />
+            <IconSun v-if="themeStore.isDark" key="sun" :size="17" />
+            <IconMoon v-else key="moon" :size="17" />
           </Transition>
         </button>
 
@@ -182,13 +184,14 @@ onBeforeUnmount(() => {
     <Transition name="drawer">
       <nav v-if="menuOpen" class="navbar__drawer">
         <RouterLink
-          v-for="link in navLinks"
+          v-for="(link, i) in navLinks"
           :key="link.to"
           :to="link.to"
           class="navbar__drawer-link"
           @click="closeMenu"
         >
-          {{ link.label }}
+          <span class="navbar__ch">CH{{ i + 1 }}</span>
+          <span class="navbar__link-text">{{ link.label }}</span>
         </RouterLink>
       </nav>
     </Transition>
@@ -208,8 +211,8 @@ onBeforeUnmount(() => {
   z-index: 100;
   height: var(--header-height);
   background: color-mix(in srgb, var(--color-bg) 85%, transparent);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: var(--nav-blur);
+  -webkit-backdrop-filter: var(--nav-blur);
   border-bottom: 1px solid transparent;
   transition:
     background-color 0.3s var(--ease),
@@ -218,7 +221,7 @@ onBeforeUnmount(() => {
     border-color 0.3s var(--ease);
 }
 
-/* 首页未滚动：透明 */
+/* 首页未滚动：透明（纸面/晒图面直接透出） */
 .navbar--home:not(.navbar--scrolled) {
   background: transparent;
   backdrop-filter: none;
@@ -226,13 +229,13 @@ onBeforeUnmount(() => {
   border-bottom-color: transparent;
 }
 
-/* 首页滚动后：暗色 blur */
+/* 首页滚动后：毛玻璃 */
 .navbar--home.navbar--scrolled {
-  background: rgba(10, 15, 28, 0.75);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: var(--nav-blur);
+  -webkit-backdrop-filter: var(--nav-blur);
+  border-bottom-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 非首页滚动后 */
@@ -250,78 +253,160 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
+/* ── 品牌：制图图框 S + 等宽铭牌 ── */
 .navbar__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   color: var(--color-heading);
-  font-family: var(--font-nav);
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: 0.01em;
   transition: color var(--transition-fast);
 }
 
 .navbar__logo {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
-  font-weight: 800;
-  color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  width: 34px;
+  height: 34px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-heading);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-heading);
   border-radius: var(--radius-sm);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-  transition: transform var(--transition-fast);
+  /* 双线图框：外实线 + 内虚线，制图图纸味 */
+  outline: 1px dashed color-mix(in srgb, var(--color-heading) 35%, transparent);
+  outline-offset: -5px;
+  transition:
+    transform var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .navbar__brand:hover .navbar__logo {
-  transform: rotate(-8deg) scale(1.05);
+  transform: rotate(-4deg);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  outline-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
 }
 
-/* 导航链接组：绝对居中，保证文字始终位于导航栏正中 */
+.navbar__name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15.5px;
+  letter-spacing: 0.02em;
+  color: var(--color-heading);
+}
+
+.navbar__name-sub {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--color-primary);
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+/* ── 通道选择器（导航）：CH 编号 + LED 点 ── */
 .navbar__nav {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   transition:
     opacity 0.25s var(--ease),
     transform 0.25s var(--ease);
 }
 
-/* 吸顶标题显示时隐藏中间导航 */
 .navbar__nav--hidden {
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, -6px);
 }
 
-/* 滚动后展示的页面标题：同样绝对居中 */
+.navbar__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+/* 通道编号小标 */
+.navbar__ch {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+/* LED 指示灯：active 通道点亮 */
+.navbar__link::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  transition:
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.navbar__link:hover {
+  color: var(--color-heading);
+}
+
+.navbar__link:hover .navbar__ch {
+  color: var(--color-text-secondary);
+}
+
+.navbar__link.router-link-exact-active {
+  color: var(--color-primary);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.navbar__link.router-link-exact-active .navbar__ch {
+  color: var(--color-primary);
+}
+
+.navbar__link.router-link-exact-active::after {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+}
+
+/* ── 吸顶标题 ── */
 .navbar__title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   max-width: 56vw;
-  font-family: var(--font-nav);
-  font-size: 16px;
+  font-family: var(--font-mono);
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.05em;
   color: var(--color-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* 首页透明态：白色标题 */
-.navbar--home:not(.navbar--scrolled) .navbar__title {
-  color: rgba(255, 255, 255, 0.92);
-}
-
-/* 标题进出动画（保持水平居中） */
 .nav-title-enter-active,
 .nav-title-leave-active {
   transition:
@@ -335,73 +420,14 @@ onBeforeUnmount(() => {
   transform: translate(-50%, -8px);
 }
 
-.navbar__link {
-  position: relative;
-  padding: 8px 16px;
-  color: var(--color-text-secondary);
-  font-family: var(--font-nav);
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0.04em;
-  border-radius: var(--radius-sm);
-  transition: color var(--transition-fast);
-}
-
-.navbar__link::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 2px;
-  height: 2px;
-  background: var(--color-primary);
-  border-radius: 2px;
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.25s var(--ease);
-}
-
-.navbar__link:hover {
-  color: var(--color-heading);
-}
-
-.navbar__link.router-link-exact-active {
-  color: var(--color-primary);
-}
-
-.navbar__link.router-link-exact-active::after {
-  transform: scaleX(1);
-}
-
-/* 首页透明状态：白色文字 */
-.navbar--home:not(.navbar--scrolled) .navbar__brand,
-.navbar--home:not(.navbar--scrolled) .navbar__link {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.navbar--home:not(.navbar--scrolled) .navbar__link:hover,
-.navbar--home:not(.navbar--scrolled) .navbar__link.router-link-exact-active {
-  color: #fff;
-}
-
-.navbar--home:not(.navbar--scrolled) .navbar__link::after {
-  background: var(--hero-accent);
-}
-
-.navbar--home:not(.navbar--scrolled) .navbar__logo {
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: none;
-}
-
+/* ── 右侧操作区 ── */
 .navbar__actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* 搜索框 */
+/* 搜索框：仪器输入位 */
 .navbar__search {
   display: flex;
   align-items: center;
@@ -409,7 +435,7 @@ onBeforeUnmount(() => {
   padding: 4px 6px 4px 10px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 
@@ -435,12 +461,13 @@ onBeforeUnmount(() => {
 }
 
 .navbar__search-input {
-  width: 120px;
+  width: 128px;
   border: none;
   outline: none;
   background: transparent;
   color: var(--color-text);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   padding: 4px 6px 4px 2px;
   transition: width 0.25s var(--ease);
 }
@@ -450,7 +477,7 @@ onBeforeUnmount(() => {
 }
 
 .navbar__search-input:focus {
-  width: 160px;
+  width: 168px;
 }
 
 /* 首页透明态（未滚动）：隐藏搜索框，待导航栏滚动变化后再出现 */
@@ -458,7 +485,7 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* 已登录：头像 + 用户名 + 退出 */
+/* ── 已登录：头像 + 用户名 + 退出 ── */
 .navbar__user {
   display: flex;
   align-items: center;
@@ -473,16 +500,16 @@ onBeforeUnmount(() => {
   height: 32px;
   border-radius: var(--radius-full);
   color: #fff;
-  font-family: var(--font-nav);
-  font-weight: 700;
-  font-size: 14px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--color-primary);
 }
 
 .navbar__username {
-  font-family: var(--font-nav);
+  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
   max-width: 96px;
   overflow: hidden;
@@ -493,9 +520,9 @@ onBeforeUnmount(() => {
 .navbar__logout {
   height: 34px;
   padding: 0 12px;
-  font-family: var(--font-nav);
+  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -510,75 +537,31 @@ onBeforeUnmount(() => {
   border-color: var(--color-primary);
 }
 
-/* 登录态：管理后台入口 */
+/* 登录态：管理后台入口（主开关按钮） */
 .navbar__admin-link {
   display: inline-flex;
   align-items: center;
   height: 34px;
   padding: 0 14px;
-  font-family: var(--font-nav);
+  font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.02em;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
   color: #fff;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  background: var(--color-primary);
   border-radius: var(--radius-sm);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: var(--shadow-primary);
   transition:
     transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    filter var(--transition-fast);
+    background-color var(--transition-fast);
 }
 
 .navbar__admin-link:hover {
   transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  background: var(--color-primary-hover);
 }
 
-/* 首页透明态：管理后台按钮保持品牌色，仅微调 */
-.navbar--home:not(.navbar--scrolled) .navbar__admin-link {
-  background: rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: none;
-  color: #fff;
-}
-
-/* 首页透明态下的登录态元素 */
-.navbar--home:not(.navbar--scrolled) .navbar__username {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.navbar--home:not(.navbar--scrolled) .navbar__logout {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.navbar--home:not(.navbar--scrolled) .navbar__logout:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-@media (max-width: 768px) {
-  .navbar__username {
-    display: none;
-  }
-
-  /* 移动端：搜索框只显示图标按钮，点击进入 /search 页输入 */
-  .navbar__search {
-    padding: 6px;
-    border-radius: var(--radius-full);
-  }
-  .navbar__search-input {
-    display: none;
-  }
-}
-
+/* ── 主题切换 / 汉堡：仪器按键 ── */
 .theme-toggle,
 .navbar__burger {
   display: grid;
@@ -599,23 +582,6 @@ onBeforeUnmount(() => {
 .navbar__burger:hover {
   color: var(--color-primary);
   border-color: var(--color-primary);
-}
-
-/* 首页透明状态：按钮透明 */
-.navbar--home:not(.navbar--scrolled) .theme-toggle,
-.navbar--home:not(.navbar--scrolled) .navbar__burger {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.navbar--home:not(.navbar--scrolled) .theme-toggle:hover,
-.navbar--home:not(.navbar--scrolled) .navbar__burger:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .icon-swap-enter-active,
@@ -639,6 +605,7 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+/* ── 移动端抽屉 ── */
 .navbar__drawer {
   position: absolute;
   top: calc(var(--header-height) - 8px);
@@ -650,27 +617,50 @@ onBeforeUnmount(() => {
   padding: 10px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
 }
 
 .navbar__drawer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   padding: 13px 16px;
   color: var(--color-text);
-  font-family: var(--font-nav);
+  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 15px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   border-radius: var(--radius-sm);
+  border: 1px solid transparent;
   transition:
     background-color var(--transition-fast),
     color var(--transition-fast);
 }
 
+.navbar__drawer-link .navbar__ch {
+  font-size: 10.5px;
+}
+
+.navbar__drawer-link::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
 .navbar__drawer-link:hover,
 .navbar__drawer-link.router-link-exact-active {
-  background: var(--color-primary-soft);
+  background: var(--color-primary-softer);
   color: var(--color-primary);
+  border-color: var(--color-border);
+}
+
+.navbar__drawer-link.router-link-exact-active::after {
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
 }
 
 .navbar__backdrop {
@@ -705,6 +695,31 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
+.navbar__link:focus-visible,
+.theme-toggle:focus-visible,
+.navbar__burger:focus-visible,
+.navbar__logout:focus-visible,
+.navbar__admin-link:focus-visible,
+.navbar__search-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+@media (max-width: 768px) {
+  .navbar__username {
+    display: none;
+  }
+
+  /* 移动端：搜索框只显示图标按钮，点击进入 /search 页输入 */
+  .navbar__search {
+    padding: 6px;
+    border-radius: var(--radius-sm);
+  }
+  .navbar__search-input {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .navbar__nav {
     display: none;
@@ -712,6 +727,27 @@ onBeforeUnmount(() => {
 
   .navbar__burger {
     display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navbar__brand:hover .navbar__logo,
+  .navbar__admin-link:hover {
+    transform: none;
+  }
+
+  .icon-swap-enter-from,
+  .icon-swap-leave-to,
+  .nav-title-enter-from,
+  .nav-title-leave-to {
+    transform: none;
+  }
+
+  .icon-swap-enter-active,
+  .icon-swap-leave-active,
+  .nav-title-enter-active,
+  .nav-title-leave-active {
+    transition: opacity 0.15s var(--ease);
   }
 }
 </style>

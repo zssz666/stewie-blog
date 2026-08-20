@@ -105,6 +105,11 @@ function formatDate(date: string) {
   background: var(--color-bg-soft);
 }
 
+.popular__item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .popular__item:hover .popular__name {
   color: var(--color-primary);
 }

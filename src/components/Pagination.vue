@@ -116,6 +116,11 @@ function go(p: number) {
   border-color: var(--color-primary);
 }
 
+.pagination__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .pagination__btn--active {
   color: #fff;
   background: var(--color-primary);

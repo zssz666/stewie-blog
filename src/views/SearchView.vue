@@ -5,10 +5,12 @@ import type { Post } from '@/types/blog'
 import { searchPosts } from '@/api/post'
 import { useSeo } from '@/composables/useSeo'
 
+// 搜索结果页无独立收录价值（URL 随 ?q= 千变万化）：noindex 防止产生大量低质重复页
 useSeo({
   title: '搜索',
-  description: '在 Stewie 的博客中搜索文章',
+  description: '在 Stewie 的前端实验室中检索实验报告：Vue 3、TypeScript、Vite 关键词全文搜索。',
   path: '/search',
+  noindex: true,
 })
 
 const route = useRoute()
@@ -252,6 +254,11 @@ const highlightQuery = computed(() => query.value.trim())
   filter: brightness(1.06);
 }
 
+.search__submit:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
 .search__submit:active {
   transform: translateY(1px);
 }
@@ -308,6 +315,12 @@ const highlightQuery = computed(() => query.value.trim())
   padding: 16px;
   text-decoration: none;
   color: inherit;
+  border-radius: var(--radius-lg);
+}
+
+.result__link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .result__cover {
@@ -392,6 +405,11 @@ const highlightQuery = computed(() => query.value.trim())
 .search__pager button:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+.search__pager button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .search__pager button:disabled {

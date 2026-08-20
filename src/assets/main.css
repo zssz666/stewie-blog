@@ -31,10 +31,11 @@ a:hover {
   color: var(--color-primary-hover);
 }
 
+/* 正文链接用制图蓝（信息引用语义），与全局交互橙区分 */
 .article-content a,
 .about__bio a {
   position: relative;
-  color: var(--color-primary);
+  color: var(--color-accent);
   font-weight: 500;
   transition: color var(--transition-fast);
 }
@@ -82,6 +83,11 @@ a:hover {
 
 .btn:active {
   transform: translateY(1px);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .btn-primary {
@@ -312,7 +318,7 @@ a:hover {
   font-family: var(--font-mono);
   background: var(--color-bg-mute);
   border-radius: var(--radius-sm);
-  color: var(--color-primary);
+  color: var(--color-accent);
   font-weight: 500;
 }
 

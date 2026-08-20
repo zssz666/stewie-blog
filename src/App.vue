@@ -97,10 +97,10 @@ onBeforeUnmount(() => {
       v-show="showTop"
       class="back-to-top"
       type="button"
-      aria-label="返回顶部"
+      aria-label="回到图纸顶部"
       @click="scrollToTop"
     >
-    <svg t="1783675516443" class="back-to-top__icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1666" width="22" height="22" fill="currentColor"><path d="M436.48 814.592a21.76 21.76 0 0 0-21.76 21.76v107.52a21.76 21.76 0 0 0 43.52 0v-107.52a21.76 21.76 0 0 0-21.76-21.76z m79.616 4.608a22.016 22.016 0 0 0-22.016 22.016v159.744a22.016 22.016 0 0 0 44.032 0V841.984a22.016 22.016 0 0 0-22.016-22.784zM768 438.784C773.376 143.104 528.896 9.216 512 0c-16.384 8.704-260.864 142.592-256 438.272a192.256 192.256 0 0 0-93.696 187.392c8.192 98.304 104.448 163.584 141.056 160s25.6-30.72 25.6-30.72l12.544-51.2s54.272 81.92 71.68 81.92h197.632c15.616 0 71.68-81.92 71.68-81.92l12.544 51.2s-10.752 27.392 25.6 30.72 132.864-61.696 141.056-160A192.256 192.256 0 0 0 768 438.784z m-256-14.592a102.4 102.4 0 1 1 102.4-102.4 102.4 102.4 0 0 1-102.4 102.4zM588.8 819.2a21.76 21.76 0 0 0-21.76 21.76v76.8a21.76 21.76 0 1 0 43.52 0v-76.8a21.76 21.76 0 0 0-21.76-21.76z" p-id="1667"></path></svg>
+      <svg class="back-to-top__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
     </button>
   </Transition>
 </template>
@@ -114,43 +114,34 @@ onBeforeUnmount(() => {
   place-items: center;
   width: 46px;
   height: 46px;
-  border-radius: var(--radius-full);
-  color: #fff;
-  background: var(--color-primary);
-  box-shadow: var(--shadow-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-heading);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
   z-index: 90;
   transition:
-    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
     box-shadow var(--transition-fast),
     transform var(--transition-fast);
 }
 
 .back-to-top:hover {
-  background: var(--color-primary-hover);
-  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.35);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-hover);
   transform: translateY(-3px);
 }
 
 .back-to-top:hover .back-to-top__icon {
-  animation: rocket-jiggle 0.4s var(--ease);
+  animation: arrow-lift 0.4s var(--ease);
 }
 
-@keyframes rocket-jiggle {
-  0% {
-    transform: translateY(0) rotate(0);
-  }
-  25% {
-    transform: translateY(-4px) rotate(-8deg);
-  }
-  50% {
-    transform: translateY(0) rotate(0);
-  }
-  75% {
-    transform: translateY(-3px) rotate(8deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0);
-  }
+@keyframes arrow-lift {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
 }
 
 .top-btn-enter-active,

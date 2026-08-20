@@ -73,18 +73,19 @@
 /* ============================================================
    全局滚动进度条（App.vue）
    ============================================================ */
+/* 全局滚动进度：波形橙色轨迹（与示波器信号色同源） */
 .scroll-progress {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(to right, var(--color-primary), var(--color-accent));
+  background: linear-gradient(to right, var(--color-primary), var(--color-primary-hover));
   transform: scaleX(0);
   transform-origin: left center;
   z-index: 150;
   pointer-events: none;
-  box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 10px var(--color-primary-soft);
 }
 
 /* ============================================================

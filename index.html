@@ -5,51 +5,62 @@
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- 字体：Inter（无衬线）+ Lora（衬线标题）+ JetBrains Mono（代码） -->
+    <!-- 字体：IBM Plex Sans（正文）+ IBM Plex Mono（器材标签/编号）+ 霞鹜文楷（手写标题） -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- 字体非阻塞加载：避免外部样式表阻塞首屏渲染（Google Fonts 国内访问常慢/超时）。display=swap 已保证文字先以 fallback 显示 -->
   <link
     rel="preload"
     as="style"
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
     onload="this.onload=null;this.rel='stylesheet'"
   />
   <noscript>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Serif+SC:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
     />
   </noscript>
+  <!-- 霞鹜文楷（手写楷体）：npm 切片包，按 unicode-range 只下载用到的分片 -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css"
+    media="print"
+    onload="this.media='all'"
+  />
+  <noscript>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css" />
+  </noscript>
     <!-- ===== 核心 SEO（首页默认，子页面由 @unhead/vue 动态覆盖） ===== -->
-    <title>Stewie 博客 | Vue 3 踩坑 · TypeScript · Vite 实战笔记</title>
-    <meta name="description" content="Stewie 的前端开发博客。分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧、Pinia 实战经验。不搞高深理论，专注问题解决与学习心得。">
+    <title>Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告</title>
+    <meta name="description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，每篇都有复现步骤与修复方案。拒绝空洞理论，只登记真实战例。">
     <meta name="author" content="Stewie">
+    <meta name="keywords" content="前端开发, Vue 3, TypeScript, Vite, 踩坑记录, 前端博客, Pinia, CSS">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <link rel="canonical" href="https://stewie.fun/">
 
     <!-- ===== Open Graph（社交分享卡片） ===== -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Stewie 博客">
-    <meta property="og:title" content="Stewie 博客 | Vue 3 · TypeScript · Vite 实战">
-    <meta property="og:description" content="分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧。不搞高深理论，专注问题解决。">
+    <meta property="og:site_name" content="Stewie 的前端实验室">
+    <meta property="og:title" content="Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告">
+    <meta property="og:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，每篇都有复现步骤与修复方案。">
     <meta property="og:url" content="https://stewie.fun/">
     <meta property="og:image" content="https://stewie.fun/og-image.png">
     <meta property="og:locale" content="zh_CN">
 
     <!-- ===== Twitter Card ===== -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Stewie 的前端博客 | Vue 3 · TypeScript · Vite 实战">
-    <meta name="twitter:description" content="分享 Vue 3 踩坑实录、TypeScript 类型避坑、Vite 配置技巧。">
+    <meta name="twitter:title" content="Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告">
+    <meta name="twitter:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优。">
     <meta name="twitter:image" content="https://stewie.fun/og-image.png">
 
     <!-- ===== 移动端 / PWA ===== -->
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0d1a22">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Stewie Blog">
 
-    <!-- ===== 结构化数据：WebSite + Person（E-E-A-T 信号） ===== -->
+    <!-- ===== 结构化数据：WebSite（含站内搜索框） + Person（E-E-A-T 信号） ===== -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -58,10 +69,18 @@
           "@type": "WebSite",
           "@id": "https://stewie.fun/#website",
           "url": "https://stewie.fun/",
-          "name": "Stewie 的前端博客",
-          "description": "Vue 3 踩坑 · TypeScript · Vite 实战笔记",
+          "name": "Stewie 的前端实验室",
+          "description": "把每个 bug 做成一次实验：Vue 3 · TypeScript · Vite 踩坑实验报告",
           "inLanguage": "zh-CN",
-          "publisher": { "@id": "https://stewie.fun/#person" }
+          "publisher": { "@id": "https://stewie.fun/#person" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://stewie.fun/search?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
         },
         {
           "@type": "Person",
@@ -69,7 +88,7 @@
           "name": "Stewie",
           "url": "https://stewie.fun/about",
           "jobTitle": "前端工程师",
-          "knowsAbout": ["Vue 3", "TypeScript", "Vite", "Pinia", "Node.js"]
+          "knowsAbout": ["Vue 3", "TypeScript", "Vite", "Pinia", "Node.js", "CSS"]
         }
       ]
     }
@@ -77,6 +96,11 @@
   </head>
   <body>
     <div id="app"></div>
+    <!-- 表情小球引擎（全局脚本，须在应用入口前按序加载：几何数据 → 表情配置 → 渲染层 → 驱动层） -->
+    <script defer src="/emotion-ball/rings.js"></script>
+    <script defer src="/emotion-ball/emotions.js"></script>
+    <script defer src="/emotion-ball/ball.js"></script>
+    <script defer src="/emotion-ball/engine.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

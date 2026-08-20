@@ -11,9 +11,10 @@ import ProfileCard from '@/components/ProfileCard.vue'
 import { useSeo } from '@/composables/useSeo'
 
 useSeo({
-  title: '全部文章',
-  description: 'Stewie 的前端开发文章合集。Vue 3 踩坑、TypeScript 类型技巧、Vite 配置、Pinia 实战，按分类与标签筛选浏览。',
+  title: '全部实验报告',
+  description: 'Stewie 的前端实验报告归档：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，按分类与标签筛选，每篇附复现步骤与修复方案。',
   path: '/articles',
+  keywords: ['Vue 3 教程', 'TypeScript 踩坑', 'Vite 配置', 'Pinia 实战', '前端博客'],
 })
 
 // 每页条数：当前种子数据较少，设为 4 以便直观演示分页效果（可按需调大）
@@ -247,7 +248,7 @@ onMounted(async () => {
   color: #fff;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   border-radius: 50%;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+  box-shadow: var(--shadow-primary);
   border: 3px solid var(--color-surface);
 }
 

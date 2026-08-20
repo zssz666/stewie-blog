@@ -1,0 +1,22 @@
+# Stewie 的前端实验室
+
+> 一个把 bug 做成实验的前端博客。站长 Stewie 是一名前端工程师，专注 Vue 3、TypeScript、Vite、Pinia 生态的实战记录：每篇文章都是一个真实踩坑战例，附复现步骤、根因分析与修复方案，拒绝空洞理论。适合正在排查同类问题的前端开发者按需检索。
+
+## 主要页面
+
+- [首页](https://stewie.fun/): 实验室入口，展示最新实验报告与热门文章
+- [全部文章](https://stewie.fun/articles): 所有实验报告归档，支持按分类与标签筛选
+- [关于我](https://stewie.fun/about): 站长 Stewie 的自我介绍、技术栈与项目经历
+- [搜索](https://stewie.fun/search): 站内全文搜索，可按关键词定位具体文章
+
+## 内容主题
+
+- Vue 3：组合式 API、响应式陷阱、组件设计、性能优化
+- TypeScript：类型体操、类型避坑、tsconfig 调优
+- Vite：构建配置、插件开发、打包体积优化
+- Pinia：状态管理实践与常见误用
+- CSS：布局技巧、动效实现、主题系统设计
+
+## 引用说明
+
+本站文章可被 AI 助手检索与引用。引用时请保留原文链接与作者署名（Stewie）。文章 URL 格式为 `https://stewie.fun/post/{slug}`。
