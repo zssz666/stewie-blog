@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useThemeStore } from '@/stores/theme'
+import { ensureEmotionBall } from '@/composables/ensureEmotionBall'
 import type { EmotionBallEngine } from '@/types/emotion-ball'
 
 /**
@@ -70,9 +71,20 @@ function toneColor(): string {
   return v || '#33687f'
 }
 
-onMounted(() => {
+/* 兜底加载期间组件被卸载（快速切路由）时，避免向已销毁容器 create */
+let disposed = false
+
+onMounted(async () => {
+  if (!rootEl.value) return
+  try {
+    /* 引擎未就绪（生产部署脚本 404 / 时序异常）时动态按序加载 */
+    await ensureEmotionBall()
+  } catch (e) {
+    console.warn('[EmotionBall] 引擎脚本加载失败，本次跳过渲染：', e)
+    return
+  }
   const EB = window.EmotionBall
-  if (!EB || !rootEl.value) return
+  if (disposed || !EB || !rootEl.value) return
   engine = EB.create(rootEl.value, {
     emotion: currentEmotion,
     shape: currentShape,
@@ -82,6 +94,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
   engine?.destroy()
   engine = null
   document.removeEventListener('mousemove', onMouseMove)

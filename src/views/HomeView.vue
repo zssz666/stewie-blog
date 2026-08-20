@@ -304,7 +304,7 @@ const banter = [
           <p class="block-sub">EXP 由登记簿实时统计 —— 每写 10 篇实验，升一级。</p>
         </div>
         <div v-reveal="180">
-          <LabStatusCard :exp-count="sortedPosts.length" />
+          <LabStatusCard :exp-count="postsTotal" />
         </div>
       </div>
     </section>

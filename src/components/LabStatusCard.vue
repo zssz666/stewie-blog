@@ -49,7 +49,7 @@ const RANDOM_EMOTIONS = ['02', '03', '10', '11', '13', '14', '16', '19', '30', '
 function randomizeBall() {
   const emotion = RANDOM_EMOTIONS[(Math.random() * RANDOM_EMOTIONS.length) | 0]!
   ballRef.value?.setEmotion(emotion)
-  if (Math.random() < 0.25) ballRef.value?.burst(8)
+  if (Math.random() < 0.35) ballRef.value?.burst(8)
 }
 
 onMounted(() => {

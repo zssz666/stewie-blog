@@ -93,14 +93,17 @@
       ]
     }
     </script>
-  </head>
-  <body>
-    <div id="app"></div>
-    <!-- 表情小球引擎（全局脚本，须在应用入口前按序加载：几何数据 → 表情配置 → 渲染层 → 驱动层） -->
+    <!-- 表情小球引擎（全局脚本，按序加载：几何数据 → 表情配置 → 渲染层 → 驱动层）
+         ⚠ 必须放在 head：Vite 构建会把 module 入口注入 head 末尾，
+         若脚本留在 body 会排在入口之后执行，导致 window.EmotionBall 未就绪、小球全灭 -->
     <script defer src="/emotion-ball/rings.js"></script>
     <script defer src="/emotion-ball/emotions.js"></script>
     <script defer src="/emotion-ball/ball.js"></script>
     <script defer src="/emotion-ball/engine.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- 应用入口（构建后 Vite 会提升到 head 末尾，位于上方 4 个引擎 defer 脚本之后，顺序安全） -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
