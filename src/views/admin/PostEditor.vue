@@ -3,7 +3,7 @@ import { onMounted, ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Category, PostInput } from '@/types/blog'
 import { buildBlock, BLOCK_LEVEL, BLOCK_HINTS, type BlockKind } from '@/editor/blocks'
-import { enhanceCodeBlocks } from '@/utils/article'
+import { enhanceCodeBlocks, escapeCodeBlockContent } from '@/utils/article'
 import { createPost, getAdminPost, updatePost, uploadCover, generateExcerpt } from '@/api/admin'
 import { getCategories } from '@/api/post'
 import { resolveAsset } from '@/api/request'
@@ -37,7 +37,8 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 // ── 实时预览：直接渲染 HTML 源码，与文章页 .article-content 同源 ──
 // 正文以 HTML 存储/渲染，编辑器即「HTML 源码 + 所见即所得预览」。
-const renderedContent = computed(() => content.value)
+// 代码块内容先转义：粘贴含 <script>/<div> 等标签的代码不会被解析成真实 DOM（与文章页一致）。
+const renderedContent = computed(() => escapeCodeBlockContent(content.value))
 
 const previewRef = ref<HTMLElement | null>(null)
 // 内容变化后重新增强代码块（macOS 窗口装饰 + 复制按钮），与文章页一致

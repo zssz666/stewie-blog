@@ -9,10 +9,47 @@ import { useCountUp } from '@/composables/useCountUp'
 /* ── 高德地图 JS API Key ── */
 const AMAP_KEY = '2e731f127dc2484ecb092e8e1e8a769c'
 
+/* ── FAQ 常见问题（AEO：首句即结论，便于答案引擎摘录；JSON-LD 与页面可见内容同源） ── */
+const faqs = [
+  {
+    q: 'Stewie 的前端实验室是什么网站？',
+    a: 'Stewie 的前端实验室（stewie.fun）是一个中文前端技术博客，专注于 Vue 3、TypeScript、Vite、Pinia 的实战踩坑记录。每篇文章都是一个真实战例，包含问题复现步骤、根因分析与修复方案。',
+  },
+  {
+    q: 'Stewie 是谁？',
+    a: 'Stewie 是一名坐标四川成都的前端工程师，INFJ-A 人格，信奉「把每个 bug 做成一次实验」——遇到问题就复现、定位、修复并登记成实验报告。',
+  },
+  {
+    q: '博客主要更新哪些主题？',
+    a: '主要覆盖六大领域：Vue 3（组合式 API 与响应式陷阱）、TypeScript（类型系统避坑）、Vite（构建与部署）、Pinia（状态管理）、CSS（布局与双主题系统）、部署运维（Nginx 与 SEO）。',
+  },
+  {
+    q: '文章里的代码示例可以直接使用吗？',
+    a: '可以。所有代码均基于 Vue 3 + TypeScript + Vite 技术栈复现验证过，代码块右上角带一键复制按钮。',
+  },
+  {
+    q: '如何联系 Stewie？',
+    a: '通过关于页社交卡中的 GitHub 与邮箱等链接联系，也欢迎在任意文章下方留言评论。',
+  },
+]
+
 useSeo({
   title: '关于 Stewie',
   description: 'Stewie，前端工程师。把每个 bug 做成一次实验，登记在册——这里是关于本实验室与研究员的一切。',
   path: '/about',
+  /* FAQPage 结构化数据（AEO）：答案引擎/语音助手可直接引用的问答对，
+     内容与下方页面可见 FAQ 区块严格一致（Google 规范要求） */
+  jsonLd: [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
+      })),
+    },
+  ],
 })
 
 /* ── 研究员档案（后端数据） ── */
@@ -398,6 +435,18 @@ const movies = [
           <span class="bento__lazy-s2" aria-hidden="true">—— 三个月后（并没有）</span>
         </p>
       </article>
+    </section>
+
+    <!-- FAQ 常见问题（AEO：内容随 DOM 直出，供答案引擎与 AI 助手引用） -->
+    <section class="container about__faq" v-reveal="120">
+      <p class="about__faq-tag">F.A.Q</p>
+      <h2 class="about__faq-title">实验台常见提问</h2>
+      <div class="about__faq-list">
+        <details v-for="f in faqs" :key="f.q" class="about__faq-item">
+          <summary class="about__faq-q">{{ f.q }}</summary>
+          <p class="about__faq-a">{{ f.a }}</p>
+        </details>
+      </div>
     </section>
   </div>
 </template>
@@ -1625,6 +1674,132 @@ const movies = [
   .bento__hobbies-tags span:hover,
   .bento__resume-list li:hover {
     transform: none;
+  }
+}
+
+/* ============================================================
+   FAQ 常见问题（AEO：结构化问答区块，内容随 DOM 直出）
+   ============================================================ */
+.about__faq {
+  margin-top: 64px;
+}
+
+.about__faq-tag {
+  margin: 0 0 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.about__faq-title {
+  margin: 0 0 28px;
+  font-size: clamp(1.5rem, 3vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.about__faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+
+/* 单条问答：图纸虚线边框，与 Bento 宫格同一套视觉语言 */
+.about__faq-item {
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.about__faq-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 8%);
+}
+
+.about__faq-item[open] {
+  border-style: solid;
+}
+
+.about__faq-q {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+/* 去掉浏览器默认三角（Firefox / Chrome 双写法） */
+.about__faq-q::-webkit-details-marker {
+  display: none;
+}
+
+.about__faq-q::marker {
+  content: '';
+}
+
+/* Q 字徽标 */
+.about__faq-q::before {
+  content: 'Q';
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-xs);
+}
+
+/* 展开指示箭头：收起 ▸ / 展开旋转 90° */
+.about__faq-q::after {
+  content: '▸';
+  margin-left: auto;
+  flex: none;
+  color: var(--color-text-secondary);
+  transition: transform 0.25s var(--ease, ease);
+}
+
+.about__faq-item[open] .about__faq-q::after {
+  transform: rotate(90deg);
+}
+
+.about__faq-item[open] .about__faq-q {
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.about__faq-a {
+  margin: 0;
+  padding: 14px 20px 18px;
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .about__faq {
+    margin-top: 48px;
+  }
+
+  .about__faq-q {
+    font-size: 14px;
+    padding: 13px 16px;
+  }
+
+  .about__faq-a {
+    padding: 12px 16px 16px;
   }
 }
 </style>

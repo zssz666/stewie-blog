@@ -13,7 +13,7 @@ import {
 } from '@/api/interaction'
 import { useUiStore } from '@/stores/ui'
 import { useSeo } from '@/composables/useSeo'
-import { enhanceCodeBlocks } from '@/utils/article'
+import { enhanceCodeBlocks, escapeCodeBlockContent } from '@/utils/article'
 import PopularPosts from '@/components/PopularPosts.vue'
 
 const route = useRoute()
@@ -22,6 +22,8 @@ const slug = computed(() => String(route.params.slug ?? ''))
 
 const post = ref<Post | null>(null)
 const loading = ref(true)
+/* 渲染前对代码块内容转义：代码里粘贴的 <script>/<div> 等标签不会被解析成真实 DOM */
+const renderedContent = computed(() => escapeCodeBlockContent(post.value?.content ?? ''))
 // 占位值，接口返回前模板不会报错
 const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
 
@@ -36,6 +38,7 @@ useSeo({
   // article:published_time 要求 ISO 8601：Date 字符串序列化正好是标准格式
   publishedTime: computed(() => (post.value ? new Date(post.value.date).toISOString() : undefined)),
   // BlogPosting 结构化数据：帮助搜索引擎生成富摘要（标题/日期/作者/头图）
+  // BreadcrumbList 面包屑：Google 搜索结果展示「首页 › 实验报告 › 文章标题」层级路径
   jsonLd: computed(() =>
     post.value
       ? [
@@ -50,6 +53,16 @@ useSeo({
             author: { '@type': 'Person', name: 'Stewie', url: 'https://stewie.fun/about' },
             keywords: post.value.tags?.join(', '),
             mainEntityOfPage: `https://stewie.fun/post/${post.value.slug}`,
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: '首页', item: 'https://stewie.fun/' },
+              { '@type': 'ListItem', position: 2, name: '实验报告', item: 'https://stewie.fun/articles' },
+              // 当前页（末级）按 Google 规范可省 item，只留 name
+              { '@type': 'ListItem', position: 3, name: post.value.title },
+            ],
           },
         ]
       : [],
@@ -433,7 +446,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div class="article-content" v-html="post?.content" />
+        <div class="article-content" v-html="renderedContent" />
 
         <!-- 底部互动 -->
         <div class="post__actions" v-reveal>

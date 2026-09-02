@@ -69,7 +69,7 @@
           "@type": "WebSite",
           "@id": "https://stewie.fun/#website",
           "url": "https://stewie.fun/",
-          "name": "Stewie 的前端实验室",
+          "name": "Stewie 的实验室",
           "description": "把每个 bug 做成一次实验：Vue 3 · TypeScript · Vite 踩坑实验报告",
           "inLanguage": "zh-CN",
           "publisher": { "@id": "https://stewie.fun/#person" },
@@ -93,6 +93,16 @@
       ]
     }
     </script>
+    <!-- 今日头条推送脚本 -->
+    <script>
+      (function(){
+      var el = document.createElement("script");
+      el.src = "https://lf1-cdn-tos.bytegoofy.com/goofy/ttzz/push.js?ac2c5aa288add56a8b9dacade615165c48c477191aa38934644453b66807b3023871f0d6a9220c04b06cd03d5ba8e733fe66d20303562cd119c1d6f449af6378";
+      el.id = "ttzz";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(el, s);
+      })(window)
+    </script>
     <!-- 表情小球引擎（全局脚本，按序加载：几何数据 → 表情配置 → 渲染层 → 驱动层）
          ⚠ 必须放在 head：Vite 构建会把 module 入口注入 head 末尾，
          若脚本留在 body 会排在入口之后执行，导致 window.EmotionBall 未就绪、小球全灭 -->
@@ -102,6 +112,12 @@
     <script defer src="/emotion-ball/engine.js"></script>
   </head>
   <body>
+    <!-- 静态 H1：SPA 初始源码中 Bingbot / 爬虫 / 屏幕阅读器可直接读取（Bing 站长工具基于源码检测 H1）。
+         样式为 W3C 无障碍标准的「视觉隐藏」写法（非 display:none），客户端渲染后保留在 DOM 中；
+         各路由视图另有自己的可见 H1，双 H1 为 HTML5 允许结构，无 SEO 惩罚风险。 -->
+    <h1 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0">
+      Stewie 的实验室 — Vue 3 · TypeScript · Vite 踩坑实验报告与开发技术分享
+    </h1>
     <div id="app"></div>
     <!-- 应用入口（构建后 Vite 会提升到 head 末尾，位于上方 4 个引擎 defer 脚本之后，顺序安全） -->
     <script type="module" src="/src/main.ts"></script>
