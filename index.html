@@ -32,26 +32,26 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont/style.css" />
   </noscript>
     <!-- ===== 核心 SEO（首页默认，子页面由 @unhead/vue 动态覆盖） ===== -->
-    <title>Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告</title>
-    <meta name="description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，每篇都有复现步骤与修复方案。拒绝空洞理论，只登记真实战例。">
+    <title>Stewie 的实验室 | 开发踩坑实验报告</title>
+    <meta name="description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，AI体验分享，每篇都有复现步骤与修复方案。拒绝空洞理论，只登记真实战例。">
     <meta name="author" content="Stewie">
-    <meta name="keywords" content="前端开发, Vue 3, TypeScript, Vite, 踩坑记录, 前端博客, Pinia, CSS">
+    <meta name="keywords" content="前端开发, Vue 3, TypeScript, Vite, 踩坑记录，springboot, Node.js, 后端开发, 前端博客, Pinia, CSS">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <link rel="canonical" href="https://stewie.fun/">
 
     <!-- ===== Open Graph（社交分享卡片） ===== -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Stewie 的前端实验室">
-    <meta property="og:title" content="Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告">
-    <meta property="og:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，每篇都有复现步骤与修复方案。">
+    <meta property="og:site_name" content="Stewie 的实验室">
+    <meta property="og:title" content="Stewie 的实验室 | 开发踩坑实验报告">
+    <meta property="og:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，AI体验分享，每篇都有复现步骤与修复方案。">
     <meta property="og:url" content="https://stewie.fun/">
     <meta property="og:image" content="https://stewie.fun/og-image.png">
     <meta property="og:locale" content="zh_CN">
 
     <!-- ===== Twitter Card ===== -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Stewie 的前端实验室 | Vue 3 · TypeScript · Vite 踩坑实验报告">
-    <meta name="twitter:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优。">
+    <meta name="twitter:title" content="Stewie 的实验室 | 开发踩坑实验报告">
+    <meta name="twitter:description" content="把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，AI体验分享。">
     <meta name="twitter:image" content="https://stewie.fun/og-image.png">
 
     <!-- ===== 移动端 / PWA ===== -->
@@ -87,7 +87,7 @@
           "@id": "https://stewie.fun/#person",
           "name": "Stewie",
           "url": "https://stewie.fun/about",
-          "jobTitle": "前端工程师",
+          "jobTitle": "全栈开发工程师",
           "knowsAbout": ["Vue 3", "TypeScript", "Vite", "Pinia", "Node.js", "CSS"]
         }
       ]
@@ -110,13 +110,15 @@
     <script defer src="/emotion-ball/emotions.js"></script>
     <script defer src="/emotion-ball/ball.js"></script>
     <script defer src="/emotion-ball/engine.js"></script>
+    <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+    <script>LA.init({id:"3R58F2D3Gjz6Fb4w",ck:"3R58F2D3Gjz6Fb4w", hashMode: true})</script>
   </head>
   <body>
     <!-- 静态 H1：SPA 初始源码中 Bingbot / 爬虫 / 屏幕阅读器可直接读取（Bing 站长工具基于源码检测 H1）。
          样式为 W3C 无障碍标准的「视觉隐藏」写法（非 display:none），客户端渲染后保留在 DOM 中；
          各路由视图另有自己的可见 H1，双 H1 为 HTML5 允许结构，无 SEO 惩罚风险。 -->
     <h1 style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0">
-      Stewie 的实验室 — Vue 3 · TypeScript · Vite 踩坑实验报告与开发技术分享
+      Stewie 的实验室
     </h1>
     <div id="app"></div>
     <!-- 应用入口（构建后 Vite 会提升到 head 末尾，位于上方 4 个引擎 defer 脚本之后，顺序安全） -->

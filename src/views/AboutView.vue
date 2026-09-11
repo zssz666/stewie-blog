@@ -12,16 +12,16 @@ const AMAP_KEY = '2e731f127dc2484ecb092e8e1e8a769c'
 /* ── FAQ 常见问题（AEO：首句即结论，便于答案引擎摘录；JSON-LD 与页面可见内容同源） ── */
 const faqs = [
   {
-    q: 'Stewie 的前端实验室是什么网站？',
-    a: 'Stewie 的前端实验室（stewie.fun）是一个中文前端技术博客，专注于 Vue 3、TypeScript、Vite、Pinia 的实战踩坑记录。每篇文章都是一个真实战例，包含问题复现步骤、根因分析与修复方案。',
+    q: 'Stewie 的实验室是什么网站？',
+    a: 'Stewie 的实验室（stewie.fun）是一个中文前端技术博客，专注于 Vue 3、TypeScript、Vite、Pinia 的实战踩坑记录。每篇文章都是一个真实战例，包含问题复现步骤、根因分析与修复方案。',
   },
   {
     q: 'Stewie 是谁？',
-    a: 'Stewie 是一名坐标四川成都的前端工程师，INFJ-A 人格，信奉「把每个 bug 做成一次实验」——遇到问题就复现、定位、修复并登记成实验报告。',
+    a: 'Stewie 是一名坐标四川成都的全栈开发工程师，INFJ-A 人格，信奉「把每个 bug 做成一次实验」——遇到问题就复现、定位、修复并登记成实验报告。',
   },
   {
     q: '博客主要更新哪些主题？',
-    a: '主要覆盖六大领域：Vue 3（组合式 API 与响应式陷阱）、TypeScript（类型系统避坑）、Vite（构建与部署）、Pinia（状态管理）、CSS（布局与双主题系统）、部署运维（Nginx 与 SEO）。',
+    a: '主要覆盖六大领域：Vue 3（组合式 API 与响应式陷阱）、TypeScript（类型系统避坑）、Vite（构建与部署）、springboot（后端开发）、Node.js（服务端开发）、部署运维（Nginx 与 SEO）。',
   },
   {
     q: '文章里的代码示例可以直接使用吗？',
@@ -35,7 +35,7 @@ const faqs = [
 
 useSeo({
   title: '关于 Stewie',
-  description: 'Stewie，前端工程师。把每个 bug 做成一次实验，登记在册——这里是关于本实验室与研究员的一切。',
+  description: 'Stewie，全栈开发工程师。把每个 bug 做成一次实验，登记在册——这里是关于本实验室与研究员的一切。',
   path: '/about',
   /* FAQPage 结构化数据（AEO）：答案引擎/语音助手可直接引用的问答对，
      内容与下方页面可见 FAQ 区块严格一致（Google 规范要求） */

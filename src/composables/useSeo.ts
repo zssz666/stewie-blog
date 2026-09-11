@@ -3,14 +3,14 @@ import { computed, onBeforeUnmount, toValue, watch, type MaybeRefOrGetter } from
 
 /** 站点根 URL，换域名时改这一处即可（已切到 ICP 备案通过的正式域名） */
 const SITE_URL = 'https://stewie.fun'
-const SITE_NAME = 'Stewie 的前端实验室'
-const DEFAULT_TITLE = 'Stewie 的前端实验室 — Vue 3 · TypeScript · Vite 踩坑实验报告'
+const SITE_NAME = 'Stewie 的实验室'
+const DEFAULT_TITLE = 'Stewie 的实验室 — 开发中的踩坑实验报告'
 const DEFAULT_DESC =
-  '把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，每篇都有复现步骤与修复方案。拒绝空洞理论，只登记真实战例。'
+  '把每个 bug 做成一次实验：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优、springboot 后端开发、Node.js 服务端开发，每篇都有复现步骤与修复方案。拒绝空洞理论，只登记真实战例。'
 const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`
 
 /** 站点通用关键词：自动并入每个页面的 keywords */
-const SITE_KEYWORDS = ['前端开发', 'Vue 3', 'TypeScript', 'Vite', '踩坑记录']
+const SITE_KEYWORDS = ['前端开发', 'Vue 3', 'TypeScript', 'Vite', '踩坑记录', 'springboot', 'Node.js', '后端开发']
 
 /** JSON-LD 注入标记（head 内由 useSeo 管理的 ld+json 标签） */
 const LD_ATTR = 'data-seo-jsonld'

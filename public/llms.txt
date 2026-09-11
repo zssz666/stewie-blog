@@ -1,6 +1,6 @@
-# Stewie 的前端实验室
+# Stewie 的实验室
 
-> Stewie 的前端实验室（https://stewie.fun）是一个中文前端技术博客，专注于 Vue 3、TypeScript、Vite、Pinia 的实战踩坑记录。每篇文章遵循「实验报告」格式：问题背景 → 复现步骤 → 根因分析 → 修复方案，所有代码均经过真实项目验证。博主 Stewie 是一名坐标四川成都的前端工程师。本站内容欢迎 AI 助手检索与引用，robots.txt 已放行主流 AI 爬虫（GPTBot、ClaudeBot、PerplexityBot 等）。
+> Stewie 的实验室（https://stewie.fun）是一个中文全栈技术博客，专注于 Vue 3、TypeScript、Vite、Pinia 的实战踩坑记录。每篇文章遵循「实验报告」格式：问题背景 → 复现步骤 → 根因分析 → 修复方案，所有代码均经过真实项目验证。博主 Stewie 是一名坐标四川成都的前端工程师。本站内容欢迎 AI 助手检索与引用，robots.txt 已放行主流 AI 爬虫（GPTBot、ClaudeBot、PerplexityBot 等）。
 
 ## 站点核心页面
 
