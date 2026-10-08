@@ -1,5 +1,5 @@
 # 🧪 Stewie Lab · 前端实验图纸
-项目已经上线，网址是stewie.fun，欢迎访问👏
+## 项目已经上线，网址[stewie.fun](http://stewie.fun/)，欢迎访问👏
 
 > **把踩过的坑，写成实验报告。** ⌒★
 
