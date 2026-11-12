@@ -171,7 +171,7 @@ function poke(i: number) {
 }
 
 .comic__sfx--sky { background: var(--sticker-sky); }
-.comic__sfx--lemon { background: #ff9a3b; }
+.comic__sfx--lemon { background: #ff9a3b; color: #1d2a32; }
 .comic__sfx--mint { background: var(--sticker-mint); }
 .comic__sfx--pink { background: var(--sticker-pink); }
 

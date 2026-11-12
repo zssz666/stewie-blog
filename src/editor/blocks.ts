@@ -13,7 +13,6 @@ export type BlockKind =
   | 'list'
   | 'quote'
   | 'link'
-  | 'image'
   | 'hr'
 
 export interface Insertion {
@@ -63,18 +62,46 @@ export function buildBlock(kind: BlockKind, selected: string): Insertion {
       const selEnd = selStart + 'https://'.length
       return { text, selStart, selEnd }
     }
-    case 'image': {
-      const alt = selected || '图片描述'
-      const text = `<img src="https://" alt="${alt}" />`
-      const selStart = text.indexOf('"') + 1
-      const selEnd = selStart + 'https://'.length
-      return { text, selStart, selEnd }
-    }
     case 'hr': {
       const text = '<hr />'
       return { text, selStart: text.length, selEnd: text.length }
     }
   }
+}
+
+/* ── 媒体块：由「已上传得到的 URL」构造，不再是手填空壳 ── */
+
+/** 从文件名推导一个可用的 alt 文案（SEO / 无障碍都需要，留空比乱填更糟） */
+export function suggestAlt(fileName: string): string {
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+}
+
+/**
+ * 图片块：`<figure>` 包 `<img>` + `<figcaption>`。
+ * <p>用 figure/figcaption 而非裸 img，是为了让图注成为结构化内容（爬虫可读、样式可控）。
+ * 光标落在图注占位文字上，插入后可直接改。</p>
+ */
+export function buildImageBlock(url: string, alt = ''): Insertion {
+  const caption = '在此填写图注'
+  const text =
+    '<figure>\n' +
+    `  <img src="${url}" alt="${alt}" loading="lazy" />\n` +
+    `  <figcaption>${caption}</figcaption>\n` +
+    '</figure>'
+  const selStart = text.indexOf(caption)
+  return { text, selStart, selEnd: selStart + caption.length }
+}
+
+/**
+ * 视频块：原生 `<video>`（controls + preload=metadata + playsinline）。
+ * <p>preload=metadata 只拉首帧与时长，不会因为一个视频把整页拖慢；playsinline 保证 iOS 不强制全屏。</p>
+ */
+export function buildVideoBlock(url: string): Insertion {
+  const text = `<video src="${url}" controls preload="metadata" playsinline></video>`
+  return { text, selStart: text.length, selEnd: text.length }
 }
 
 /** 块级元素：插入时前后补换行，保证 HTML 源码结构清晰、可维护。 */
@@ -101,6 +128,16 @@ export const BLOCK_HINTS: BlockHint[] = [
       '<ul>\n  <li><strong>ping 域名</strong>先走 DNS，测的是 CDN 节点</li>\n  <li><strong>ping IP</strong>直连源站，测的是真实服务器</li>\n</ul>',
   },
   { label: '引用（金句）', sample: '<blockquote>排查的本质，是把变量一个个钉死。</blockquote>' },
-  { label: '链接 / 图片', sample: '<a href="https://stewie.fun">我的博客</a>' },
+  { label: '链接', sample: '<a href="https://stewie.fun">我的博客</a>' },
+  {
+    label: '图片（工具栏 🖼️ 选文件即上传插入，自动带图注）',
+    sample:
+      '<figure>\n  <img src="https://example.com/images/demo.jpg" alt="示意图" />\n  <figcaption>图 1：报错现场截图</figcaption>\n</figure>',
+  },
+  {
+    label: '视频（工具栏 🎬 选文件即上传插入，最大 100MB）',
+    sample:
+      '<figure>\n  <video src="https://example.com/videos/demo.mp4" controls preload="metadata" playsinline></video>\n  <figcaption>视频：功能演示</figcaption>\n</figure>',
+  },
   { label: '分割线', sample: '<hr />' },
 ]

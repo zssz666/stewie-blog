@@ -56,12 +56,15 @@ const router = createRouter({
           path: 'posts/new',
           name: 'admin-post-new',
           component: () => import('../views/admin/PostEditor.vue'),
+          // 写作页需要更宽的画布（后台容器默认 1360px 会把正文区压窄）
+          meta: { wide: true },
         },
         {
           path: 'posts/:id/edit',
           name: 'admin-post-edit',
           component: () => import('../views/admin/PostEditor.vue'),
           props: true,
+          meta: { wide: true },
         },
         {
           path: 'comments',

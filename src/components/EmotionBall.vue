@@ -73,9 +73,38 @@ function toneColor(): string {
 
 /* 兜底加载期间组件被卸载（快速切路由）时，避免向已销毁容器 create */
 let disposed = false
+let inView = true
+let visibilityObserver: IntersectionObserver | undefined
+let motionMedia: MediaQueryList | undefined
+
+function syncActivity() {
+  const active = !disposed && inView && !document.hidden
+  engine?.setActive(active)
+  document.removeEventListener('mousemove', onMouseMove)
+  if (active && props.gaze) document.addEventListener('mousemove', onMouseMove, { passive: true })
+}
+
+function rebuildBall() {
+  const EB = window.EmotionBall
+  if (disposed || !EB || !rootEl.value) return
+  const reducedMotion = motionMedia?.matches
+  engine?.destroy()
+  engine = EB.create(rootEl.value, {
+    emotion: currentEmotion,
+    shape: currentShape,
+    color: toneColor(),
+    label: props.label,
+    autostart: false,
+    lite: reducedMotion,
+    reducedMotion,
+  })
+  syncActivity()
+}
 
 onMounted(async () => {
   if (!rootEl.value) return
+  motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+  document.addEventListener('visibilitychange', syncActivity)
   try {
     /* 引擎未就绪（生产部署脚本 404 / 时序异常）时动态按序加载 */
     await ensureEmotionBall()
@@ -83,14 +112,16 @@ onMounted(async () => {
     console.warn('[EmotionBall] 引擎脚本加载失败，本次跳过渲染：', e)
     return
   }
-  const EB = window.EmotionBall
-  if (disposed || !EB || !rootEl.value) return
-  engine = EB.create(rootEl.value, {
-    emotion: currentEmotion,
-    shape: currentShape,
-    color: toneColor(),
-    label: props.label,
-  })
+  if (disposed || !rootEl.value) return
+  rebuildBall()
+  motionMedia.addEventListener('change', rebuildBall)
+  if (typeof IntersectionObserver !== 'undefined') {
+    visibilityObserver = new IntersectionObserver(entries => {
+      inView = entries.some(entry => entry.isIntersecting)
+      syncActivity()
+    })
+    visibilityObserver.observe(rootEl.value)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -98,13 +129,19 @@ onBeforeUnmount(() => {
   engine?.destroy()
   engine = null
   document.removeEventListener('mousemove', onMouseMove)
+  visibilityObserver?.disconnect()
+  motionMedia?.removeEventListener('change', rebuildBall)
+  document.removeEventListener('visibilitychange', syncActivity)
 })
 
 /* 主题切换：CSS 变量已换值，直接改实例主题色（免重建，不闪不丢状态） */
 watch(
   () => themeStore.isDark,
   () => {
-    if (engine) engine._theme = { body: toneColor(), eyes: '#FFFFFF' }
+    if (engine) {
+      engine._theme = { body: toneColor(), eyes: '#FFFFFF' }
+      if (!inView || document.hidden) engine.renderStatic()
+    }
   },
 )
 
@@ -128,16 +165,8 @@ watch(
   () => props.shape,
   (s) => {
     if (!s || s === currentShape) return
-    const EB = window.EmotionBall
-    if (!EB || !rootEl.value) return
     currentShape = s
-    engine?.destroy()
-    engine = EB.create(rootEl.value, {
-      emotion: currentEmotion,
-      shape: s,
-      color: toneColor(),
-      label: props.label,
-    })
+    if (engine) rebuildBall()
   },
 )
 
@@ -152,7 +181,7 @@ function onMouseMove(e: MouseEvent) {
 watch(
   () => props.gaze,
   (on) => {
-    if (on) document.addEventListener('mousemove', onMouseMove, { passive: true })
+    if (on) syncActivity()
     else {
       document.removeEventListener('mousemove', onMouseMove)
       engine?.clearGaze()
@@ -164,8 +193,8 @@ watch(
 /* 对外暴露：切表情 / 自旋甩彩带 / 撒花 */
 defineExpose({
   setEmotion: applyEmotion,
-  spin: (turns?: number) => engine?.spin(turns),
-  burst: (count?: number) => engine?.burst(count),
+  spin: (turns?: number) => { if (!motionMedia?.matches && inView && !document.hidden) engine?.spin(turns) },
+  burst: (count?: number) => { if (!motionMedia?.matches && inView && !document.hidden) engine?.burst(count) },
 })
 </script>
 

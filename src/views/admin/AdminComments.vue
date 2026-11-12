@@ -9,20 +9,27 @@ const page = ref(1)
 const size = ref(15)
 const statusFilter = ref<number | null>(null)
 const loading = ref(false)
+const error = ref('')
+let loadVersion = 0
 const busyId = ref<number | null>(null)
 
 async function load() {
+  const version = ++loadVersion
   loading.value = true
+  error.value = ''
   try {
     const res = await listAdminComments({
       page: page.value,
       size: size.value,
       status: statusFilter.value ?? undefined,
     })
+    if (version !== loadVersion) return
     comments.value = res.list
     total.value = res.total
+  } catch (e) {
+    if (version === loadVersion) error.value = e instanceof Error ? e.message : '加载评论失败'
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -51,6 +58,8 @@ async function setStatus(c: Comment, s: number) {
   try {
     await reviewComment(c.id, s)
     await load()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '操作失败，请重试'
   } finally {
     busyId.value = null
   }
@@ -63,6 +72,8 @@ async function remove(c: Comment) {
     await deleteComment(c.id)
     if (comments.value.length === 1 && page.value > 1) page.value--
     await load()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '操作失败，请重试'
   } finally {
     busyId.value = null
   }
@@ -84,6 +95,7 @@ onMounted(load)
       </div>
     </div>
 
+    <div v-if="error" class="admin-alert admin-alert--error" role="alert">{{ error }} <button class="btn btn--link" @click="load">重新加载</button></div>
     <div class="admin-panel">
       <div class="admin-panel__body" style="padding-top: 16px">
         <div class="admin-pills">
@@ -119,18 +131,18 @@ onMounted(load)
                 <button
                   v-if="c.status !== 1"
                   class="btn btn--link is-ok"
-                  :disabled="busyId === c.id"
+                  :disabled="busyId !== null"
                   @click="setStatus(c, 1)"
                 >通过</button>
                 <button
                   v-if="c.status !== 2"
                   class="btn btn--link"
-                  :disabled="busyId === c.id"
+                  :disabled="busyId !== null"
                   @click="setStatus(c, 2)"
                 >标记垃圾</button>
                 <button
                   class="btn btn--link is-danger"
-                  :disabled="busyId === c.id"
+                  :disabled="busyId !== null"
                   @click="remove(c)"
                 >删除</button>
               </div>
@@ -172,7 +184,8 @@ onMounted(load)
   border-radius: 50%;
   color: #fff;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  background: var(--color-bg-mute);
+  color: var(--color-heading);
 }
 .cmt__body {
   flex: 1;

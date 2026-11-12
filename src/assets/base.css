@@ -29,7 +29,7 @@
   --color-heading: var(--ink);
   --color-text: #3a4a52;
   --color-text-secondary: #5e6e76;
-  --color-text-tertiary: #8ca0a8;
+  --color-text-tertiary: #60737d;
 
   /* ── 边框 ── */
   --color-border: #d9e0db;
@@ -39,6 +39,7 @@
   /* ── 主色（安全橙） ── */
   --color-primary: var(--hazard);
   --color-primary-hover: #c24511;
+  --color-on-primary: #ffffff;
   --color-primary-active: #a63a0d;
   --color-primary-soft: rgba(224, 86, 29, 0.09);
   --color-primary-softer: rgba(224, 86, 29, 0.05);
@@ -160,7 +161,7 @@ html.dark {
   --color-heading: var(--ink);
   --color-text: #aec2cb;
   --color-text-secondary: #7e98a3;
-  --color-text-tertiary: #5d7580;
+  --color-text-tertiary: #90a8b3;
 
   --color-border: #1d3140;
   --color-border-hover: #2c4657;
@@ -168,6 +169,7 @@ html.dark {
 
   --color-primary: var(--hazard);
   --color-primary-hover: #ff9257;
+  --color-on-primary: #10222d;
   --color-primary-active: #ffad7c;
   --color-primary-soft: rgba(255, 122, 59, 0.12);
   --color-primary-softer: rgba(255, 122, 59, 0.07);
@@ -278,7 +280,8 @@ h6 {
 }
 
 img,
-svg {
+svg,
+video {
   display: block;
   max-width: 100%;
 }

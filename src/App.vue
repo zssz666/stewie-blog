@@ -13,6 +13,7 @@ const route = useRoute()
 const showTop = ref(false)
 const scrollProgress = ref(0)
 // 文章页已有独立的阅读进度条，避免两条顶栏重复（跟随路由实时更新）
+const isAdminPage = computed(() => route.path === '/admin' || route.path.startsWith('/admin/'))
 const isPostPage = computed(() => route.name === 'post')
 
 // 平滑滚动动画句柄，组件卸载或重复点击时用于取消上一轮
@@ -76,9 +77,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppNavbar />
+  <AppNavbar v-if="!isAdminPage" />
   <div
-    v-if="!isPostPage"
+    v-if="!isPostPage && !isAdminPage"
     class="scroll-progress"
     :style="{ transform: `scaleX(${scrollProgress})` }"
     aria-hidden="true"
@@ -90,11 +91,11 @@ onBeforeUnmount(() => {
       </Transition>
     </RouterView>
   </main>
-  <AppFooter />
+  <AppFooter v-if="!isAdminPage" />
 
   <Transition name="top-btn">
     <button
-      v-show="showTop"
+      v-show="showTop && !isAdminPage"
       class="back-to-top"
       type="button"
       aria-label="回到图纸顶部"

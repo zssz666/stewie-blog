@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { Author, Post } from '@/types/blog'
 import { getPosts, getCategories, getTags } from '@/api/post'
 import { getAuthor } from '@/api/author'
@@ -10,10 +11,29 @@ import PopularPosts from '@/components/PopularPosts.vue'
 import ProfileCard from '@/components/ProfileCard.vue'
 import { useSeo } from '@/composables/useSeo'
 
+const route = useRoute()
+const router = useRouter()
+function queryText(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+function queryPage(): number {
+  const value = Number(queryText(route.query.page) || 1)
+  return Number.isInteger(value) && value > 0 && value <= 2147483647 ? value : 1
+}
+function pageHref(value: number): string {
+  const query = new URLSearchParams()
+  if (value > 1) query.set('page', String(value))
+  const category = queryText(route.query.category)
+  const tag = queryText(route.query.tag)
+  if (category) query.set('category', category)
+  if (tag) query.set('tag', tag)
+  return '/articles' + (query.size ? '?' + query.toString() : '')
+}
+
 useSeo({
   title: '全部实验报告',
   description: 'Stewie 的前端实验报告归档：Vue 3 踩坑实录、TypeScript 类型避坑、Vite 构建调优，按分类与标签筛选，每篇附复现步骤与修复方案。',
-  path: '/articles',
+  path: () => pageHref(queryPage()),
   keywords: ['Vue 3 教程', 'TypeScript 踩坑', 'Vite 配置', 'Pinia 实战', '前端博客'],
 })
 
@@ -23,14 +43,14 @@ const PAGE_SIZE = 4
 const posts = ref<Post[]>([])
 const total = ref(0)
 const pages = ref(1)
-const page = ref(1)
+const page = ref(queryPage())
 const loading = ref(false)
 
 // 筛选维度（"全部" 表示不过滤，向后端传 undefined）
 const categories = ref<string[]>(['全部'])
 const tags = ref<string[]>(['全部'])
-const activeCategory = ref('全部')
-const activeTag = ref('全部')
+const activeCategory = ref(queryText(route.query.category) || '全部')
+const activeTag = ref(queryText(route.query.tag) || '全部')
 
 // 占位值，接口返回前模板不会报错
 const author = ref<Author>({ name: 'Stewie', role: '', bio: '', socials: [], skills: [] })
@@ -45,7 +65,9 @@ const techStack = [
 ]
 
 /** 根据当前筛选 + 页码向后端拉取数据 */
+let requestId = 0
 async function load() {
+  const currentRequest = ++requestId
   loading.value = true
   try {
     const res = await getPosts({
@@ -54,6 +76,7 @@ async function load() {
       category: activeCategory.value === '全部' ? undefined : activeCategory.value,
       tag: activeTag.value === '全部' ? undefined : activeTag.value,
     })
+    if (currentRequest !== requestId) return
     // 防御：后端版本不一致时 res.list 可能为 undefined，确保始终为数组
     posts.value = res.list ?? []
     total.value = res.total ?? 0
@@ -62,27 +85,29 @@ async function load() {
   } catch (e) {
     console.error('获取文章失败:', e)
   } finally {
-    loading.value = false
+    if (currentRequest === requestId) loading.value = false
   }
 }
 
 function onCategoryChange(c: string) {
-  activeCategory.value = c
-  page.value = 1
-  load()
+  router.push({ path: '/articles', query: { ...route.query, page: undefined, category: c === '全部' ? undefined : c } })
 }
 
 function onTagChange(t: string) {
-  activeTag.value = t
-  page.value = 1
-  load()
+  router.push({ path: '/articles', query: { ...route.query, page: undefined, tag: t === '全部' ? undefined : t } })
 }
 
 function onPageChange(p: number) {
-  page.value = p
-  load()
+  router.push(pageHref(p))
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+watch(() => [route.query.page, route.query.category, route.query.tag], () => {
+  page.value = queryPage()
+  activeCategory.value = queryText(route.query.category) || '全部'
+  activeTag.value = queryText(route.query.tag) || '全部'
+  load()
+})
 
 onMounted(async () => {
   // 并行拉取全量分类 / 标签，用于渲染筛选条
@@ -175,6 +200,7 @@ onMounted(async () => {
         </TransitionGroup>
 
         <Pagination
+          :href-for-page="pageHref"
           :page="page"
           :pages="pages"
           :total="total"

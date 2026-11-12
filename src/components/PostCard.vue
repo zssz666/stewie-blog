@@ -106,6 +106,7 @@ const formattedViews = computed(() => {
         </span>
         <span class="exp-card__category">{{ post.category }}</span>
       </div>
+      <span class="exp-card__read" aria-hidden="true">阅读实验 <span>→</span></span>
     </div>
   </RouterLink>
 </template>
@@ -129,7 +130,7 @@ const formattedViews = computed(() => {
     border-color 0.3s var(--ease);
 }
 
-.exp-card:hover {
+.exp-card:is(:hover, :focus-visible) {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--color-primary) 38%, transparent);
   box-shadow: var(--shadow-hover);
@@ -141,7 +142,7 @@ const formattedViews = computed(() => {
 }
 
 /* 悬停：编号点亮（像被抽查的档案） */
-.exp-card:hover .exp-card__no {
+.exp-card:is(:hover, :focus-visible) .exp-card__no {
   color: var(--color-primary);
   -webkit-text-stroke-color: transparent;
 }
@@ -167,7 +168,7 @@ const formattedViews = computed(() => {
   transition: transform 0.5s var(--ease);
 }
 
-.exp-card:hover .exp-card__cover-img {
+.exp-card:is(:hover, :focus-visible) .exp-card__cover-img {
   transform: scale(1.04);
 }
 
@@ -348,7 +349,7 @@ const formattedViews = computed(() => {
   transition: color var(--transition-fast);
 }
 
-.exp-card:hover .exp-card__title {
+.exp-card:is(:hover, :focus-visible) .exp-card__title {
   color: var(--color-primary);
 }
 
@@ -473,7 +474,13 @@ const formattedViews = computed(() => {
   }
 }
 
+.exp-card__read { display: flex; gap: 10px; margin-top: 16px; color: var(--color-primary); font-size: 14px; font-weight: 600; }
+.exp-card__read > span { display: inline-block; transition: transform 180ms var(--ease-out); }
+.exp-card:is(:hover, :focus-visible) .exp-card__read > span { transform: translateX(5px); }
+
 @media (prefers-reduced-motion: reduce) {
+  .exp-card:is(:hover, :focus-visible), .exp-card:is(:hover, :focus-visible) .exp-card__cover-img, .exp-card:is(:hover, :focus-visible) .exp-card__read > span { transform: none; }
+  .exp-card__read > span { transition: none; }
   .exp-card,
   .exp-card:hover {
     transform: none !important;

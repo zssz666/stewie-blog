@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Post } from '@/types/blog'
 import { getPosts } from '@/api/post'
@@ -11,6 +11,7 @@ import LabStatusCard from '@/components/LabStatusCard.vue'
 import FlowComic from '@/components/FlowComic.vue'
 import Arsenal from '@/components/Arsenal.vue'
 import EmotionBall from '@/components/EmotionBall.vue'
+import ExperimentPicker from '@/components/ExperimentPicker.vue'
 
 useSeo() // 首页默认 SEO
 
@@ -29,16 +30,43 @@ if (typeof window !== 'undefined') {
 const posts = ref<Post[]>([])
 /* 后台文章总数（贴纸展示用，非当前列表长度） */
 const postsTotal = ref(0)
+const postsLoading = ref(true)
+const postsError = ref(false)
+const experimentBusy = ref(false)
+const homeRoot = ref<HTMLElement | null>(null)
+let ambientObserver: IntersectionObserver | undefined
+
+function syncPageVisibility() {
+  homeRoot.value?.classList.toggle('home--paused', document.hidden)
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', syncPageVisibility)
+  syncPageVisibility()
+  if (typeof IntersectionObserver !== 'undefined') {
+    ambientObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) entry.target.classList.toggle('motion-paused', !entry.isIntersecting)
+    })
+    homeRoot.value?.querySelectorAll('.hero, .home-cta, .marquee-band').forEach(el => ambientObserver?.observe(el))
+  }
+})
+onBeforeUnmount(() => {
+  ambientObserver?.disconnect()
+  document.removeEventListener('visibilitychange', syncPageVisibility)
+})
 
 onMounted(async () => {
   try {
-    // 取足量条数，保证首页登记簿能展示全部文章（后端默认分页会截断）
+    // 首页展示最近五篇，实验抽选复用同一批真实记录。
     const page = await getPosts({ size: 5 })
-    posts.value = page.list
+    posts.value = Array.isArray(page.list) ? page.list : []
     // 后台总条数；若后端未返回 total 则退回列表长度兑底
-    postsTotal.value = page.total || page.list.length
+    postsTotal.value = page.total || posts.value.length
   } catch (e) {
+    postsError.value = true
     console.error('获取文章失败:', e)
+  } finally {
+    postsLoading.value = false
   }
 })
 
@@ -80,6 +108,17 @@ function randomizeBall() {
   if (Math.random() < 0.35) heroBallRef.value?.spin(1)
 }
 
+function startExperiment() {
+  experimentBusy.value = true
+  heroBallRef.value?.setEmotion('30')
+}
+
+function finishExperiment() {
+  experimentBusy.value = false
+  heroBallRef.value?.setEmotion('33')
+  heroBallRef.value?.spin(1)
+}
+
 /* ── 尾声 CTA 小球：点击随机换表情 + 低概率撒花 ── */
 const ctaBallRef = ref<InstanceType<typeof EmotionBall> | null>(null)
 function randomizeCtaBall() {
@@ -103,9 +142,14 @@ const banter = [
 </script>
 
 <template>
-  <div class="home" :class="introPlayed ? 'home--static' : 'home--intro'">
+  <div ref="homeRoot" class="home" :class="introPlayed ? 'home--static' : 'home--intro'">
     <!-- ═══════════ Hero · 制图桌上的一张实验图纸 ═══════════ -->
     <section class="hero grid-paper">
+      <div class="hero__starfield" aria-hidden="true">
+        <span class="hero__stars hero__stars--far" />
+        <span class="hero__stars hero__stars--mid" />
+        <span class="hero__stars hero__stars--near" />
+      </div>
       <!-- 图框：双线制图边框 + 四角对位十字标 -->
       <div class="hero__frame" aria-hidden="true">
         <span class="hero__mark hero__mark--tl" />
@@ -120,7 +164,7 @@ const banter = [
           EXP-000 · 实验开始
         </p>
 
-        <h1 class="hero-title" v-reveal="160">
+        <h1 class="hero-title">
           <span class="hero-title__line">
             <span
               v-for="(ch, i) in titleLine1"
@@ -139,7 +183,9 @@ const banter = [
           </span>
         </h1>
 
-        <p class="hero__flow" v-reveal="380">
+        <p class="hero__intro">Stewie 的全栈开发笔记，记录问题的复现、定位与修复。</p>
+
+        <p class="hero__flow" v-reveal="100">
           <span class="hero__flow-step">假设</span>
           <span class="hero__flow-arrow" aria-hidden="true">→</span>
           <span class="hero__flow-step">复现</span>
@@ -149,9 +195,9 @@ const banter = [
           <span class="hero__flow-step">沉淀</span>
         </p>
 
-        <p class="hero__meta" v-reveal="460">Vue 3 · TypeScript · Spring Boot · Node.js</p>
+        <p class="hero__meta" v-reveal="150">Vue 3 · TypeScript · Spring Boot · Node.js</p>
 
-        <div class="hero__actions" v-reveal="560">
+        <div class="hero__actions" v-reveal="200">
           <RouterLink
             to="/articles"
             class="hero__btn hero__btn--primary"
@@ -178,10 +224,10 @@ const banter = [
       </div>
 
       <!-- 便签贴纸：登记条数是真实数据 -->
-      <div class="hero__sticker" v-reveal="760" aria-hidden="true">
+      <div class="hero__sticker" v-reveal="200" aria-hidden="true">
         <span class="hero__sticker-tape" />
         登记在册实验
-        <strong>{{ postsTotal }}</strong>
+        <strong>{{ postsLoading || postsError ? '—' : postsTotal }}</strong>
         条 · 均已归档
       </div>
 
@@ -191,13 +237,9 @@ const banter = [
       <span class="spark spark--3" aria-hidden="true" />
       <span class="spark spark--4" aria-hidden="true" />
 
-      <!-- 示波器装置（桌面端） -->
-      <div class="hero__osc" v-reveal="880">
-        <Oscilloscope label="OSC-1" />
-      </div>
-
-      <!-- 吉祥物贴纸：点击随机换表情 + 形状（站在示波器上方） -->
-      <div class="hero__mascot hero__mascot--over-osc" v-reveal="920">
+      <!-- 实验台：小球、可操作仪器与真实文章抽选共用一段文流。 -->
+      <div class="hero__workbench">
+      <div class="hero__mascot" v-reveal="250">
         <button
           type="button"
           class="hero__mascot-btn"
@@ -207,19 +249,25 @@ const banter = [
           <EmotionBall
             ref="heroBallRef"
             tone="hazard"
-            :size="116"
+            :size="88"
             :emotion="heroEmotion"
             :shape="heroShape"
             gaze
             label="实验室吉祥物：表情小球（安全橙）"
           />
           <!-- 对话气泡：直接附着在按钮上，尾巴自然对准球心 -->
-          <span class="hero__bubble">点我换表情</span>
+          <span class="hero__bubble">{{ experimentBusy ? '让我找找下一次实验…' : '调调信号，再抽篇文章？' }}</span>
         </button>
       </div>
 
+      <div class="hero__osc" v-reveal="200">
+        <Oscilloscope label="实验信号" :scanning="experimentBusy" />
+      </div>
+      <ExperimentPicker :posts="sortedPosts" :loading="postsLoading" :error="postsError" @scan-start="startExperiment" @scan-end="finishExperiment" />
+      </div>
+
       <!-- 图纸标题栏 -->
-      <div class="hero__titleblock" v-reveal="1000" aria-hidden="true">
+      <div class="hero__titleblock" v-reveal="250" aria-hidden="true">
         <div class="hero__tb-cell">
           <span class="hero__tb-label">图号</span>
           <span class="hero__tb-value">STL-001</span>
@@ -277,7 +325,8 @@ const banter = [
             v-for="(post, index) in sortedPosts"
             :key="post.id"
             class="posts__cell"
-            v-reveal="240 + index * 100"
+            :class="{ 'posts__cell--cover-window': index === 0 && post.cover }"
+            v-reveal="index * 70"
           >
             <PostCard :post="post" :featured="index === 0" :flip="index % 2 === 1" />
           </div>
@@ -329,7 +378,7 @@ const banter = [
         <div class="block-head" v-reveal>
           <p class="block-eyebrow">ARSENAL</p>
           <h2 class="block-title">装备库</h2>
-          <p class="block-sub">实验室常用装备一览，熟练度随实验持续提升。</p>
+          <p class="block-sub">选一件装备，翻看相关技术文章。</p>
         </div>
         <div v-reveal="180">
           <Arsenal />
@@ -385,11 +434,75 @@ const banter = [
    ============================================================ */
 .hero {
   position: relative;
-  min-height: 100dvh;
-  display: flex;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
   align-items: center;
+  gap: clamp(28px, 4vw, 64px);
   overflow: hidden;
-  padding-top: var(--header-height);
+  padding: 112px max(32px, calc((100% - var(--max-width)) / 2 + 24px)) 124px;
+}
+
+.hero__starfield { display: none; }
+
+html.dark .hero { background: var(--hero-dark-1); }
+html.dark .hero__frame { top: var(--header-height); }
+html.dark .hero > .spark { display: none; }
+html.dark .hero__starfield {
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero__stars {
+  position: absolute;
+  inset: 0 0 calc(0px - var(--star-tile));
+  background-size: var(--star-tile) var(--star-tile);
+  animation: starfield-drift var(--star-speed) linear infinite;
+}
+.hero__stars--far {
+  --star-tile: 213px;
+  --star-speed: 78s;
+  --star: #94b3c3;
+  opacity: .48;
+  background-image:
+    radial-gradient(circle at 13% 19%, var(--star) .55px, transparent 1.15px),
+    radial-gradient(circle at 72% 12%, var(--star) .5px, transparent 1.05px),
+    radial-gradient(circle at 39% 58%, var(--star) .6px, transparent 1.2px),
+    radial-gradient(circle at 91% 73%, var(--star) .55px, transparent 1.15px),
+    radial-gradient(circle at 56% 89%, var(--star) .5px, transparent 1.1px);
+}
+.hero__stars--mid {
+  --star-tile: 319px;
+  --star-speed: 63s;
+  --star: #b1cdda;
+  opacity: .62;
+  background-image:
+    radial-gradient(circle at 27% 16%, var(--star) .85px, transparent 1.45px),
+    radial-gradient(circle at 83% 39%, var(--star) .75px, transparent 1.4px),
+    radial-gradient(circle at 48% 67%, var(--star) .85px, transparent 1.45px),
+    radial-gradient(circle at 10% 90%, var(--star) .7px, transparent 1.3px);
+}
+.hero__stars--near {
+  --star-tile: 457px;
+  --star-speed: 54s;
+  --star: #d9e9ee;
+  opacity: .78;
+  background-image:
+    radial-gradient(circle at 11% 32%, var(--star) 1px, transparent 1.7px),
+    radial-gradient(circle at 67% 53%, var(--star) 1.15px, transparent 1.85px),
+    radial-gradient(circle at 31% 86%, var(--star) .95px, transparent 1.65px);
+}
+
+@keyframes starfield-drift { to { transform: translateY(calc(0px - var(--star-tile))); } }
+
+.hero.motion-paused .hero__stars,
+.home--paused .hero__stars { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__stars { animation: none; }
 }
 
 /* ── 图框：双线制图边框 ── */
@@ -482,9 +595,25 @@ const banter = [
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 clamp(24px, 6vw, 72px);
+  min-width: 0;
+  padding: 0;
+}
+
+.hero__intro {
+  max-width: 440px;
+  margin-top: 22px;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.hero__workbench {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
 }
 
 /* ── 眉标 ── */
@@ -543,8 +672,8 @@ const banter = [
 
 /* 首播：逐字从轮廓填充为墨色（楷体 + 上墨 = 手写感） */
 .home--intro .hero-title__ch {
-  animation: ink-fill 0.5s ease-out forwards;
-  animation-delay: calc(0.75s + var(--ch-i) * 60ms);
+  animation: ink-fill 0.3s ease-out forwards;
+  animation-delay: calc(var(--ch-i) * 25ms);
 }
 
 @keyframes ink-fill {
@@ -602,9 +731,9 @@ const banter = [
 .hero__meta {
   margin-top: 18px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   letter-spacing: 0.05em;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
 }
 
 /* ── 按钮 ── */
@@ -633,14 +762,14 @@ const banter = [
 }
 
 .hero__btn--primary {
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--color-primary-hover);
+  color: var(--color-on-primary);
   box-shadow: var(--shadow-primary);
 }
 
 .hero__btn--primary:hover {
-  background: var(--color-primary-hover);
-  color: #fff;
+  background: var(--color-primary-active);
+  color: var(--color-on-primary);
   box-shadow: var(--shadow-lg);
 }
 
@@ -669,9 +798,11 @@ const banter = [
 .hero__sticker {
   position: absolute;
   z-index: 3;
-  top: 22%;
-  right: clamp(4%, 8vw, 10%);
-  padding: 16px 18px 14px;
+  top: auto;
+  bottom: 30px;
+  left: max(40px, calc((100% - var(--max-width)) / 2 + 24px));
+  right: auto;
+  padding: 8px 16px;
   font-family: var(--font-display);
   font-size: 14.5px;
   line-height: 1.7;
@@ -737,11 +868,7 @@ html.dark .hero__sticker {
 
 /* ── 示波器装置（桌面端右下） ── */
 .hero__osc {
-  position: absolute;
-  z-index: 3;
-  right: clamp(4%, 7vw, 9%);
-  bottom: 16%;
-  width: 300px;
+  width: 100%;
 }
 
 /* ── 图纸标题栏（右下角贴框） ── */
@@ -951,6 +1078,63 @@ html.dark .hero__sticker {
   margin-top: 24px;
 }
 
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .posts__cell--cover-window {
+      /* 避免普通淡入抢在滚动开窗之前把封面藏起来。 */
+      opacity: 1;
+      transform: none;
+      transition: none;
+      will-change: auto;
+      view-timeline-name: --cover-window;
+    }
+
+    .posts__cell--cover-window :deep(.exp-card__cover) {
+      animation: open-cover-window linear both;
+      animation-timeline: --cover-window;
+      animation-range: entry 0% cover 42%;
+    }
+
+    .posts__cell--cover-window:focus-within :deep(.exp-card__cover) {
+      animation: none;
+    }
+  }
+
+  @media (min-width: 1101px) and (min-height: 900px) {
+    .home:has(.posts__cell--cover-window) .hero {
+      min-height: calc(100svh - 145px);
+      padding-block: 78px 76px;
+    }
+
+    .posts-section:has(.posts__cell--cover-window) {
+      padding-top: 12px;
+    }
+
+    .posts-section:has(.posts__cell--cover-window) .posts__head {
+      margin-bottom: 10px;
+    }
+
+    .posts-section:has(.posts__cell--cover-window) .posts__head-left {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .posts-section:has(.posts__cell--cover-window) .posts__grid {
+      margin-top: 0;
+    }
+
+    .home:has(.posts__cell--cover-window) :is(.hero__titleblock, .hero__sticker, .hero__scroll-hint) {
+      bottom: 18px;
+    }
+  }
+}
+
+@keyframes open-cover-window {
+  from { clip-path: inset(0 26% 28% 8%); }
+  to { clip-path: inset(0%); }
+}
+
 .posts__cta {
   display: flex;
   justify-content: center;
@@ -962,24 +1146,15 @@ html.dark .hero__sticker {
    ============================================================ */
 /* ── 吉祥物：站在示波器正上方 ── */
 .hero__mascot {
-  position: absolute;
-  /* 左下角图框留白带：与右下示波器 / 标题栏各占一角，互不遮挡 */
-  z-index: 4;
-  left: clamp(3%, 7vw, 9%);
-  bottom: clamp(96px, 12vh, 140px);
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  height: 88px;
+  padding-right: 16px;
 }
 
 /* 桌面端：吉祥物站在示波器正上方（本规则在基础规则之后、响应式之前，
    级联顺序保证桌面覆盖基础值，中/小屏响应式覆盖回退位，无需 !important） */
-.hero__mascot--over-osc {
-  z-index: 5;
-  left: auto;
-  /* 球心对准示波器中心：示波器右缘 + 半宽 150px − 容器半宽约 64px */
-  right: calc(clamp(4%, 7vw, 9%) + 86px);
-  /* 示波器总高约 168px（屏 132 + 面板 36）：底部贴住示波器顶，浮动时轻触 */
-  bottom: calc(16% + 158px);
-}
-
 .hero__mascot-btn {
   display: block;
   padding: 6px;
@@ -1012,9 +1187,8 @@ html.dark .hero__sticker {
 /* 对话气泡：楷体手写批注感，直接附着在按钮上 */
 .hero__bubble {
   position: absolute;
-  top: -40%; /* 气泡在球的正上方 */
-  left: 50%; /* 水平居中于按钮 */
-  transform: translateX(-50%); /* 精确居中 */
+  top: 16px;
+  right: calc(100% + 12px);
   margin-bottom: 18px; /* 与球的间距 */
   padding: 9px 15px;
   max-width: 220px;
@@ -1033,14 +1207,14 @@ html.dark .hero__sticker {
 .hero__bubble::after {
   content: '';
   position: absolute;
-  bottom: -7px;
-  left: 50%;
+  top: 50%;
+  right: -7px;
   width: 12px;
   height: 12px;
   background: var(--color-surface-raised);
   border-right: 1.5px solid var(--color-heading);
   border-bottom: 1.5px solid var(--color-heading);
-  transform: translateX(-50%) rotate(45deg) skew(6deg, 6deg);
+  transform: translateY(-50%) rotate(-45deg);
 }
 
 .bubble-pop-enter-active,
@@ -1113,8 +1287,8 @@ html.dark .hero__sticker {
 }
 
 .block-sub {
-  font-size: 13.5px;
-  color: var(--color-text-tertiary);
+  font-size: 14px;
+  color: var(--color-text-secondary);
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
 }
@@ -1269,28 +1443,35 @@ html.dark .hero__sticker {
   will-change: auto;
 }
 
+.motion-paused .spark,
+.motion-paused .hero__mascot-btn,
+.motion-paused .home-cta__ball-btn,
+.motion-paused .hero__eyebrow-dot,
+.motion-paused .hero__scroll-hint svg,
+.marquee-band.motion-paused .marquee,
+.home--paused .spark,
+.home--paused .hero__mascot-btn,
+.home--paused .home-cta__ball-btn,
+.home--paused .hero__eyebrow-dot,
+.home--paused .hero__scroll-hint svg,
+.home--paused .marquee { animation-play-state: paused; }
+
 /* ── 响应式 ── */
-@media (max-width: 1024px) {
-  .hero__osc {
-    display: none; /* 中屏起收起装置，保住图纸留白 */
-  }
-
-  /* 示波器已收起：吉祥物回到右上原位（中屏文字流变宽，左下放不下） */
-  .hero__mascot {
-    left: auto;
-    top: 42%;
-    right: clamp(2%, 4vw, 5%);
-    bottom: auto;
-  }
-
-  .hero__bubble {
-    max-width: 180px;
-    white-space: normal;
-    font-size: 12.5px;
-  }
+@media (max-width: 1100px) {
+  .hero { grid-template-columns: minmax(0, 1fr) 330px; gap: 24px; }
+  .hero-title { font-size: clamp(2.35rem, 4.8vw, 3.4rem); }
+  .hero__btn { padding-inline: 20px; }
+  .hero__actions { gap: 10px; }
+  .hero__flow { gap: 6px; }
+  .hero__flow-step { padding-inline: 8px; }
 }
 
 @media (max-width: 768px) {
+  .hero { grid-template-columns: 1fr; padding: 112px 40px 128px; gap: 28px; }
+  .hero__inner { max-width: 600px; margin-inline: auto; }
+  .hero__workbench { width: 100%; max-width: 480px; margin-inline: auto; }
+  .hero-title { font-size: clamp(2.35rem, 6.2vw, 3.4rem); }
+  .hero__sticker { left: 40px; bottom: 42px; }
   .hero__titleblock {
     grid-template-columns: repeat(2, auto);
   }
@@ -1301,30 +1482,32 @@ html.dark .hero__sticker {
 }
 
 @media (max-width: 640px) {
+  .hero { min-height: auto; padding: 100px 24px 144px; gap: 24px; }
+  .hero__inner { max-width: 100%; }
+  .hero-title { font-size: clamp(1.9rem, 8.7vw, 2.9rem); }
+  .hero__eyebrow { margin-bottom: 18px; }
+  .hero__intro { font-size: 15px; margin-top: 18px; }
+  .hero__flow { margin-top: 22px; gap: 6px; font-size: 12px; }
+  .hero__flow-step { padding: 4px 8px; }
+  .hero__meta { font-family: var(--font-sans); font-size: 13px; letter-spacing: 0; }
+  .hero__actions { margin-top: 24px; }
+  .hero__btn { padding: 12px 18px; font-size: 13px; min-height: 44px; }
   .hero__sticker {
-    top: auto;
-    bottom: 96px;
-    right: 18px;
+    bottom: 78px;
+    left: 24px;
+    right: auto;
     font-size: 13px;
     padding: 12px 14px 10px;
   }
 
-  .hero__mascot {
-    top: auto;
-    bottom: 168px;
-    right: 6px;
-  }
-
-  /* 缩放放在按钮上：容器 transform 交给 v-reveal 接管，互不覆盖 */
-  .hero__mascot-btn {
-    transform: scale(0.72);
-  }
-
   .hero__bubble {
-    max-width: 180px;
-    white-space: normal;
-    font-size: 12.5px;
+    padding: 8px 12px;
+    font-size: 13px;
   }
+
+  .hero__titleblock { grid-template-columns: repeat(4, auto); right: 10px; bottom: 10px; }
+  .hero__tb-cell { padding: 6px 10px; }
+  .hero__tb-cell:nth-child(2) { border-right: 1px solid var(--color-border); }
 
   .spark--2,
   .spark--3 {
@@ -1389,8 +1572,7 @@ html.dark .hero__sticker {
     opacity: 0.85;
   }
 
-  /* 跑马灯为匀速水平平移（无闪烁/旋转/缩放），不属晕动高风险动画：
-     豁免 reduced-motion，保持滚动（参考 WCAG 对 animation 的削减范围） */
+  .marquee { animation: none; }
 
   .home--static .reveal {
     opacity: 1 !important;

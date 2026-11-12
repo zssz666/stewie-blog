@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
@@ -19,7 +19,9 @@ const router = useRouter()
 const scrolled = ref(false)
 const menuOpen = ref(false)
 const showTitle = ref(false) // 滚动后由导航链接切换为展示页面标题
-let lastScrollY = 0
+const menuButton = ref<HTMLButtonElement | null>(null)
+const searchInput = useTemplateRef<HTMLInputElement>('searchInput')
+const searchKey = navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'
 
 const isHome = computed(() => route.path === '/')
 
@@ -58,6 +60,22 @@ function closeMenu() {
   menuOpen.value = false
 }
 
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && menuOpen.value) {
+    closeMenu()
+    menuButton.value?.focus()
+  }
+
+  if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey) return
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
+
+  const input = searchInput.value
+  if (!input?.getClientRects().length) return
+  event.preventDefault()
+  closeMenu()
+  input.focus()
+}
+
 const displayName = computed(() => authStore.user?.nickname || authStore.user?.username || '')
 const avatarText = computed(() => (displayName.value || 'U').charAt(0).toUpperCase())
 
@@ -82,17 +100,19 @@ watch(
   () => {
     scrolled.value = false
     showTitle.value = false
-    lastScrollY = 0
+    closeMenu()
   },
 )
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('keydown', onKeydown)
   handleScroll()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 
@@ -136,13 +156,16 @@ onBeforeUnmount(() => {
             </svg>
           </button>
           <input
+            ref="searchInput"
             v-model="searchQuery"
             class="navbar__search-input"
             type="search"
             placeholder="搜索实验记录…"
             aria-label="搜索实验记录"
+            aria-keyshortcuts="Control+K Meta+K"
             autocomplete="off"
           />
+          <kbd class="navbar__search-key" aria-hidden="true">{{ searchKey }} K</kbd>
         </form>
 
         <!-- 登录态：管理后台入口 + 头像 + 用户名 + 退出（仅作者本人会话可见） -->
@@ -170,9 +193,12 @@ onBeforeUnmount(() => {
         </button>
 
         <button
+          ref="menuButton"
           class="navbar__burger"
           type="button"
           aria-label="切换菜单"
+          :aria-expanded="menuOpen"
+          aria-controls="mobile-navigation"
           @click="menuOpen = !menuOpen"
         >
           <IconMenu v-if="!menuOpen" :size="22" />
@@ -182,7 +208,7 @@ onBeforeUnmount(() => {
     </div>
 
     <Transition name="drawer">
-      <nav v-if="menuOpen" class="navbar__drawer">
+      <nav v-if="menuOpen" id="mobile-navigation" class="navbar__drawer" aria-label="移动端导航">
         <RouterLink
           v-for="(link, i) in navLinks"
           :key="link.to"
@@ -193,6 +219,10 @@ onBeforeUnmount(() => {
           <span class="navbar__ch">CH{{ i + 1 }}</span>
           <span class="navbar__link-text">{{ link.label }}</span>
         </RouterLink>
+        <template v-if="authStore.isLoggedIn">
+          <RouterLink to="/admin" class="navbar__drawer-link navbar__drawer-account" @click="closeMenu">控制台</RouterLink>
+          <button type="button" class="navbar__drawer-link navbar__drawer-account" @click="handleLogout">退出登录</button>
+        </template>
       </nav>
     </Transition>
 
@@ -247,7 +277,8 @@ onBeforeUnmount(() => {
 .navbar__inner {
   position: relative;
   height: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -255,6 +286,8 @@ onBeforeUnmount(() => {
 
 /* ── 品牌：制图图框 S + 等宽铭牌 ── */
 .navbar__brand {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -311,9 +344,9 @@ onBeforeUnmount(() => {
 
 /* ── 通道选择器（导航）：CH 编号 + LED 点 ── */
 .navbar__nav {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -325,7 +358,7 @@ onBeforeUnmount(() => {
 .navbar__nav--hidden {
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -6px);
+  transform: translateY(-6px);
 }
 
 .navbar__link {
@@ -393,10 +426,11 @@ onBeforeUnmount(() => {
 
 /* ── 吸顶标题 ── */
 .navbar__title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 56vw;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 600;
@@ -417,11 +451,13 @@ onBeforeUnmount(() => {
 .nav-title-enter-from,
 .nav-title-leave-to {
   opacity: 0;
-  transform: translate(-50%, -8px);
+  transform: translateY(-8px);
 }
 
 /* ── 右侧操作区 ── */
 .navbar__actions {
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -469,20 +505,21 @@ onBeforeUnmount(() => {
   font-family: var(--font-mono);
   font-size: 12.5px;
   padding: 4px 6px 4px 2px;
-  transition: width 0.25s var(--ease);
 }
 
 .navbar__search-input::placeholder {
   color: var(--color-text-tertiary);
 }
 
-.navbar__search-input:focus {
-  width: 168px;
-}
-
-/* 首页透明态（未滚动）：隐藏搜索框，待导航栏滚动变化后再出现 */
-.navbar--home:not(.navbar--scrolled) .navbar__search {
-  display: none;
+.navbar__search-key {
+  flex-shrink: 0;
+  padding: 2px 5px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  font: 11px/1.3 var(--font-mono);
+  white-space: nowrap;
 }
 
 /* ── 已登录：头像 + 用户名 + 退出 ── */
@@ -642,6 +679,8 @@ onBeforeUnmount(() => {
   font-size: 10.5px;
 }
 
+.navbar__drawer-account { display: none; }
+
 .navbar__drawer-link::after {
   content: '';
   width: 5px;
@@ -715,15 +754,28 @@ onBeforeUnmount(() => {
     padding: 6px;
     border-radius: var(--radius-sm);
   }
-  .navbar__search-input {
+  .navbar__search-input, .navbar__search-key {
     display: none;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
+  .navbar__inner { gap: 8px; padding-inline: 20px; }
+  .navbar__brand { gap: 8px; }
+  .navbar__name { font-size: 14px; white-space: nowrap; }
+  .navbar__title, .navbar__user, .navbar__logout, .navbar__admin-link { display: none; }
+  .navbar__actions { gap: 6px; }
+  .navbar__search { padding: 4px; }
+  .theme-toggle, .navbar__burger, .navbar__search-btn { width: 40px; height: 40px; }
+  .navbar__drawer-account { display: flex; }
+}
+
+@media (max-width: 1100px) {
   .navbar__nav {
     display: none;
   }
+
+  .navbar__username { display: none; }
 
   .navbar__burger {
     display: grid;

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import type { Author } from '@/types/blog'
 import { getAuthor } from '@/api/author'
+import { resolveAsset } from '@/api/request'
 import { getCategories, getPosts, getTags } from '@/api/post'
 import { useSeo } from '@/composables/useSeo'
 import { useCountUp } from '@/composables/useCountUp'
@@ -187,14 +188,6 @@ const socialIcons: Record<string, string> = {
   Email: 'M2 4h20v16H2V4zm10 9L4 7v10h16V7l-8 6z',
 }
 
-/* ─ 电影/动漫收藏 ── */
-const movies = [
-  { title: '鬼灭之刃', img: 'https://imgcn.bgmbk.tv/file/bk/7105/f9be5698e65a8d1da913861cdcdd38ac.webp?t=38256095707312958&k=1855601776069519' },
-  { title: '无职转生', img: 'https://imgcn3.bgmbk.tv/file/bk/11742/5fa16e4cac018f1a7f1158dbc02b52ff.webp?t=51647715930988718&k=1830260344101831' },
-  { title: '假面骑士zzz', img: 'https://static-a.xgcartoon.com/cover/jiamianqishizzzjiamianqishizeztzguoyu4k-shisenzhangtailang.jpg?w=230&h=280&q=100' },
-  { title: '蜘蛛侠：崭新之日', img: 'https://img.maohaha.xyz/?url=https://img3.doubanio.com/view/photo/l_ratio_poster/public/p2934276912.jpg' },
-  { title: '开学那天我被当成传说', img: 'https://cdn.duanjubaike.org/cover/2026/07/21e6cc4e-8640-42b5-abff-5b39e9efe8d9.jpg' },
-]
 </script>
 
 <template>
@@ -301,20 +294,19 @@ const movies = [
       </article>
 
       <!-- 电影/动漫卡 -->
-      <article class="bento bento--movies" v-reveal="350">
+      <article v-if="author.movies?.length" class="bento bento--movies" v-reveal="350">
         <span class="bento__idx" aria-hidden="true">#03</span>
         <p class="bento__label">影视收藏</p>
         <div class="bento__movies-grid">
-          <a
-            v-for="(m, i) in movies"
+          <figure
+            v-for="(m, i) in author.movies"
             :key="i"
             class="bento__movie-item"
-            href="#"
             :title="m.title"
           >
-            <img :src="m.img" :alt="m.title" />
-            <span class="bento__movie-title">{{ m.title }}</span>
-          </a>
+            <img :src="resolveAsset(m.img)" alt="" loading="lazy" />
+            <figcaption class="bento__movie-title">{{ m.title }}</figcaption>
+          </figure>
         </div>
       </article>
 
@@ -1381,7 +1373,8 @@ const movies = [
 }
 
 .bento__movies-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-top: 12px;
   width: 100%;
@@ -1389,12 +1382,11 @@ const movies = [
 
 .bento__movie-item {
   position: relative;
-  flex: 1;
+  margin: 0;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-md);
   overflow: hidden;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-  cursor: pointer;
 }
 
 .bento__movie-item img {
@@ -1412,6 +1404,7 @@ const movies = [
   padding: 8px 6px;
   font-size: 11px;
   font-weight: 600;
+  overflow-wrap: anywhere;
   color: #fff;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
   opacity: 0;
@@ -1432,6 +1425,13 @@ const movies = [
 .bento__movie-item:hover .bento__movie-title {
   opacity: 1;
   transform: translateY(0);
+}
+
+@media (hover: none) {
+  .bento__movie-title {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── #10 实验基地（高德地图） ─ */
@@ -1555,13 +1555,8 @@ const movies = [
     grid-column: span 6;
   }
 
-  /* 影视收藏：平板上两行排布（3 + 2） */
   .bento__movies-grid {
-    flex-wrap: wrap;
-  }
-
-  .bento__movie-item {
-    flex: 0 0 calc((100% - 20px) / 3);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

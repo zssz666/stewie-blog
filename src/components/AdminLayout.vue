@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { apiLogout } from '@/api/auth'
@@ -6,12 +7,19 @@ import { apiLogout } from '@/api/auth'
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const navOpen = ref(false)
+const menuButton = ref<HTMLButtonElement | null>(null)
+watch(() => route.path, () => { navOpen.value = false })
+function closeMenu() { navOpen.value = false; menuButton.value?.focus() }
+
+/** 写作页（meta.wide）：放开后台容器的 1360px 上限，把宽度还给正文编辑区 */
+const isWide = computed(() => route.meta.wide === true)
 
 // 导航项 active 判定
 // — 精确匹配或以其为前缀（用于「文章管理」覆盖 edit 等子页）
 // — 但排除同级子导航路径（如 /admin/posts/new 不应点亮「文章管理」）
 function active(...paths: string[]) {
-  return paths.some((p) => route.path === p || route.path.startsWith(p + '/'))
+  return paths.some((p) => route.path === p || (p !== '/admin' && route.path.startsWith(p + '/')))
 }
 
 /** 父级导航项专用：精确匹配或以之为前缀，但排除指定的子路由 */
@@ -28,13 +36,14 @@ async function logout() {
 </script>
 
 <template>
-  <div class="admin">
+  <div class="admin" @keydown.esc="closeMenu">
     <header class="admin__top">
+      <button ref="menuButton" type="button" class="admin__menu" :aria-expanded="navOpen" aria-controls="admin-navigation" @click="navOpen = !navOpen">{{ navOpen ? '收起导航' : '菜单' }}</button>
       <RouterLink to="/" class="admin__brand">
-        <span class="admin__logo">S</span>
+        <img class="admin__logo" src="/avatar.png" alt="" width="32" height="32" />
         <span class="admin__brand-text">
           <span class="admin__brand-name">Stewie</span>
-          <span class="admin__brand-sub">管理后台</span>
+          <span class="admin__brand-sub">内容工作台</span>
         </span>
       </RouterLink>
       <div class="admin__top-actions">
@@ -43,38 +52,38 @@ async function logout() {
       </div>
     </header>
 
-    <div class="admin__body">
-      <aside class="admin__side">
+    <div class="admin__body" :class="{ 'admin__body--wide': isWide }">
+      <aside id="admin-navigation" class="admin__side" :class="{ 'admin__side--open': navOpen }" aria-label="后台导航">
         <nav class="admin__group">
           <span class="admin__group-label">概览</span>
           <RouterLink to="/admin" class="admin__nav" :class="{ 'admin__nav--active': active('/admin') }">
-            <span class="admin__nav-ico">📊</span> 仪表盘
+            仪表盘
           </RouterLink>
         </nav>
 
         <nav class="admin__group">
           <span class="admin__group-label">内容管理</span>
           <RouterLink to="/admin/posts" class="admin__nav" :class="{ 'admin__nav--active': activeParent('/admin/posts', ['/new']) }">
-            <span class="admin__nav-ico">📄</span> 文章管理
+            文章管理
           </RouterLink>
           <RouterLink to="/admin/posts/new" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/posts/new') }">
-            <span class="admin__nav-ico">✍️</span> 写新文章
+            写新文章
           </RouterLink>
           <RouterLink to="/admin/comments" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/comments') }">
-            <span class="admin__nav-ico">💬</span> 评论审核
+            评论审核
           </RouterLink>
         </nav>
 
         <nav class="admin__group">
           <span class="admin__group-label">设置</span>
           <RouterLink to="/admin/author" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/author') }">
-            <span class="admin__nav-ico">👤</span> 关于页 / 作者
+            关于页 / 作者
           </RouterLink>
         </nav>
       </aside>
 
       <main class="admin__main">
-        <RouterView />
+        <RouterView :key="route.path" />
       </main>
     </div>
   </div>
@@ -174,6 +183,11 @@ async function logout() {
   gap: 28px;
 }
 
+/* 写作页：不限宽，用满整个视口（侧栏与顶部栏仍在，不丢导航） */
+.admin__body--wide {
+  max-width: none;
+}
+
 .admin__side {
   position: sticky;
   top: 86px;
@@ -256,5 +270,40 @@ async function logout() {
     flex: 1;
     min-width: 140px;
   }
+}
+</style>
+
+<style scoped>
+.admin { font-family: var(--font-sans); --radius-lg: 10px; --radius: 8px; --color-text-tertiary: var(--color-text-secondary); --color-primary: var(--color-primary-hover); }
+.admin__top { background: var(--color-surface); backdrop-filter: none; }
+.admin__brand { font-family: inherit; }
+.admin__logo { background: transparent; box-shadow: none; border-radius: 6px; object-fit: cover; }
+.admin__body { max-width: 1600px; gap: 28px; padding: 24px 28px 48px; }
+.admin__body--wide { max-width: none; }
+.admin__side { width: 184px; top: 88px; }
+.admin__group-label { letter-spacing: 0; font-weight: 500; font-size: 12px; padding-left: 12px; }
+.admin__nav { border-radius: 6px; padding: 11px 12px; }
+.admin__nav--active { background: var(--color-border); color: var(--color-heading); }
+.admin__nav--active::before { display: none; }
+.admin__menu { display: none; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); padding: 7px 10px; border-radius: 6px; }
+.admin__main { width: 100%; }
+.admin:has(.post-editor--focused) .admin__side { display: none; }
+@media (max-width: 1100px) {
+  .admin__top { height: 52px; padding: 0 16px; gap: 14px; }
+  .admin__menu { display: block; cursor: pointer; }
+  .admin__brand { margin-right: auto; }
+  .admin__brand-text { flex-direction: row; gap: 7px; align-items: center; }
+  .admin__brand-sub { font-size: 12px; }
+  .admin__body { display: block; padding: 20px; }
+  .admin__side { display: none; position: fixed; top: 52px; left: 0; bottom: 0; width: 248px; padding: 24px 16px; z-index: 30; background: var(--color-surface); border-right: 1px solid var(--color-border); box-shadow: 10px 0 32px #0000000d; overflow-y: auto; }
+  .admin__side--open, .admin:has(.post-editor--focused) .admin__side--open { display: flex; flex-direction: column; gap: 24px; }
+  .admin__group { flex: none; }
+}
+@media (max-width: 600px) {
+  .admin__body { padding: 16px 16px 32px; }
+  .admin__brand-sub { display: none; }
+  .admin__top-actions { gap: 10px; }
+  .admin__ghost, .admin__logout { font-size: 12px; }
+  .admin__logout { padding: 0 8px; }
 }
 </style>

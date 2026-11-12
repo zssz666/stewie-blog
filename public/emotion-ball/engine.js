@@ -322,6 +322,7 @@
     this.ball = EB.createBall(el, Object.assign({}, opts, {
       lite: opts.lite != null ? opts.lite : opts.autostart === false
     }));
+    this._reducedMotion = !!opts.reducedMotion;
     this._seed = Math.random() * 100;
     this._events = {};
     this._gaze = { x: 0, y: 0, tx: 0, ty: 0 };
@@ -417,8 +418,8 @@
       this._def = def;
       this._emoStart = now;
       this._transStart = now;
-      this._transDur = this._prevPose ? def.transition : 0;
-      this._seq = def.sequence
+      this._transDur = this._prevPose && !this._reducedMotion ? def.transition : 0;
+      this._seq = def.sequence && !this._reducedMotion
         ? { frames: def.sequence.frames, settle: def.sequence.settle, done: false }
         : null;
       if (!o.auto) this._lastActivity = now;
@@ -435,7 +436,7 @@
       this._emit('change', { id: def.id, def: def, auto: !!o.auto });
       /* 配置中的 ribbons / confetti 是进入表情时的一次性事件：
        * ribbons → 自旋甩彩带；confetti → 撒花爆发 */
-      if (this._active) {
+      if (this._active && !this._reducedMotion) {
         var fx = def.base.body;
         if (fx.ribbons > 0) this.spin(fx.ribbons >= 1 ? 2 : 1);
         if (fx.confetti > 0) this.burst(20);
@@ -622,14 +623,16 @@
       }
 
       /* 内置呼吸（相位用绝对时间，切换表情不跳变） */
-      var br = pose.body.breathe || 0;
+      var br = this._reducedMotion ? 0 : pose.body.breathe;
       if (br) {
         var ph = TAU * now / 3600;
         pose.body.scale += br * Math.sin(ph);
         pose.body.y += br * 55 * Math.sin(ph + 0.6);
       }
 
-      for (var i = 0; i < def.anims.length; i++) applyAnim(pose, def.anims[i], t, this);
+      if (!this._reducedMotion) {
+        for (var i = 0; i < def.anims.length; i++) applyAnim(pose, def.anims[i], t, this);
+      }
 
       pose.body.sketch = Math.max(pose.body.sketch || 0, this._style.sketch || 0);
 
@@ -657,7 +660,7 @@
       this._open.t = openKey != null ? openKey : (this._blinkQ.length ? this._open.t : def.openness);
 
       /* ---- 待机小动作：9~18s 随机自旋 / 弹跳 ---- */
-      if (this._active && def.antics && now >= this._anticNext) {
+      if (this._active && !this._reducedMotion && def.antics && now >= this._anticNext) {
         if (!this._spin && this._bounceAt < 0) {
           var pick = Math.random();
           if (pick < 0.45) this.spin(1);

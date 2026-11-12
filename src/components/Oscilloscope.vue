@@ -1,307 +1,187 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-/**
- * Oscilloscope —— Stewie 实验室的示波器装置（签名交互元素）。
- *
- * 交互：
- *  - 鼠标在页面上横向移动 → 调节信号频率（像拧 FREQ 旋钮）
- *  - 纵向移动 → 调节信号振幅（像拧 AMPL 旋钮）
- *  - 点击面板 → 循环切换波形：正弦 SIN → 方波 SQR → 叠加噪声 NOISE
- *
- * 无障碍：prefers-reduced-motion 时绘制静态波形，不启动动画循环。
- * 屏幕颜色是仪器物理属性（荧光屏），不随站点主题切换。
- */
-const props = withDefaults(
-  defineProps<{
-    /** 面板铭牌文字 */
-    label?: string
-  }>(),
-  { label: 'OSC-1' },
-)
+defineOptions({ name: 'LabOscilloscope' })
 
+const props = withDefaults(defineProps<{ label?: string; scanning?: boolean }>(), { label: 'OSC-1', scanning: false })
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const modeIndex = ref(0)
 const modeNames = ['SIN', 'SQR', 'NOISE'] as const
-
-/* 屏幕物理色（不随主题变） */
-const SCREEN_BG = '#0b151b'
-const TRACE = '#3ee08f'
-const TRACE_GLOW = 'rgba(62, 224, 143, 0.25)'
-const GRID = 'rgba(222, 233, 236, 0.07)'
-const GRID_CENTER = 'rgba(222, 233, 236, 0.16)'
-
-/* 波形参数（鼠标驱动的目标值 + 平滑插值的当前值） */
-let targetFreq = 1
-let targetAmp = 0.72
-let freq = 1
-let amp = 0.72
+const frequency = ref(1.9)
+const amplitude = ref(72)
+const paused = ref(false)
+const reduced = ref(false)
 let phase = 0
-
-/* 鼠标位置（归一化 0~1），rAF 内消费 */
-let pointerNX = 0.5
-let pointerNY = 0.4
-
 let raf = 0
-let running = false
+let lastTime = 0
+let inView = true
+let observer: IntersectionObserver | undefined
+let resizeObserver: ResizeObserver | undefined
+let media: MediaQueryList | undefined
 
 function sample(x: number): number {
-  const t = x * freq + phase
-  switch (modeIndex.value) {
-    case 1: {
-      // 方波：占空比 50%
-      return Math.sign(Math.sin(t * Math.PI)) * 0.85
-    }
-    case 2: {
-      // 噪声叠加：主频 + 抖动，像接触不良的探头
-      return Math.sin(t * Math.PI) * 0.7 + (Math.random() - 0.5) * 0.35
-    }
-    default:
-      return Math.sin(t * Math.PI)
-  }
+  const signal = (x * frequency.value + phase) * Math.PI
+  if (modeIndex.value === 1) return Math.sign(Math.sin(signal)) * 0.85
+  // Deterministic harmonics keep a frozen noise signal stable between redraws.
+  if (modeIndex.value === 2) return Math.sin(signal) * .65 + Math.sin(signal * 17.3) * .15 + Math.cos(signal * 31.7) * .1
+  return Math.sin(signal)
 }
 
 function draw() {
   const canvas = canvasRef.value
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const w = canvas.width
-  const h = canvas.height
-  const mid = h / 2
-
-  ctx.clearRect(0, 0, w, h)
-  ctx.fillStyle = SCREEN_BG
+  const ctx = canvas?.getContext('2d')
+  if (!canvas || !ctx) return
+  const w = canvas.width, h = canvas.height
+  ctx.fillStyle = '#0b151b'
   ctx.fillRect(0, 0, w, h)
-
-  /* 屏幕刻度网格：竖 8 格 / 横 4 格 + 中轴线 */
-  ctx.strokeStyle = GRID
+  ctx.strokeStyle = 'rgba(222,233,236,.08)'
   ctx.lineWidth = 1
   ctx.beginPath()
-  for (let i = 1; i < 8; i++) {
-    const x = Math.round((w / 8) * i) + 0.5
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x, h)
-  }
-  for (let i = 1; i < 4; i++) {
-    const y = Math.round((h / 4) * i) + 0.5
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-  }
+  for (let i = 1; i < 8; i++) { ctx.moveTo(w * i / 8, 0); ctx.lineTo(w * i / 8, h) }
+  for (let i = 1; i < 4; i++) { ctx.moveTo(0, h * i / 4); ctx.lineTo(w, h * i / 4) }
   ctx.stroke()
-  ctx.strokeStyle = GRID_CENTER
+  ctx.strokeStyle = props.scanning ? '#ffcf4d' : '#3ee08f'
+  ctx.lineWidth = Math.max(1.6, w / 220)
+  ctx.lineJoin = 'round'
   ctx.beginPath()
-  ctx.moveTo(0, mid + 0.5)
-  ctx.lineTo(w, mid + 0.5)
-  ctx.stroke()
-
-  /* 波形轨迹：辉光层 + 主线层 */
-  const drawTrace = (width: number, color: string) => {
-    ctx.strokeStyle = color
-    ctx.lineWidth = width
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    const steps = 96
-    for (let i = 0; i <= steps; i++) {
-      const x = (w / steps) * i
-      const y = mid - sample(i / steps) * (mid * 0.78) * amp
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-    }
-    ctx.stroke()
+  for (let i = 0; i <= 180; i++) {
+    const x = w * i / 180
+    const y = h / 2 - sample(i / 180) * (h * .4) * amplitude.value / 100
+    if (!i) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
   }
-  drawTrace(4, TRACE_GLOW)
-  drawTrace(1.6, TRACE)
+  ctx.stroke()
 }
 
-function loop() {
-  if (!running) return
-  /* 鼠标 → 目标参数，参数平滑逼近（模拟旋钮阻尼） */
-  targetFreq = 0.6 + pointerNX * 2.6
-  targetAmp = 0.28 + (1 - pointerNY) * 0.68
-  freq += (targetFreq - freq) * 0.06
-  amp += (targetAmp - amp) * 0.06
-  phase += 0.045 * freq
-
+function loop(time: number) {
+  const elapsed = lastTime ? Math.min(time - lastTime, 50) : 16
+  lastTime = time
+  phase += elapsed / 1000 * frequency.value * (props.scanning ? 6 : 1.4)
   draw()
   raf = requestAnimationFrame(loop)
+}
+
+function syncAnimation() {
+  cancelAnimationFrame(raf)
+  raf = 0
+  lastTime = 0
+  draw()
+  if (inView && !document.hidden && !paused.value && !reduced.value) raf = requestAnimationFrame(loop)
 }
 
 function resizeCanvas() {
   const canvas = canvasRef.value
   if (!canvas) return
+  const r = canvas.getBoundingClientRect()
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const rect = canvas.getBoundingClientRect()
-  canvas.width = Math.max(1, Math.round(rect.width * dpr))
-  canvas.height = Math.max(1, Math.round(rect.height * dpr))
+  canvas.width = Math.max(1, Math.round(r.width * dpr))
+  canvas.height = Math.max(1, Math.round(r.height * dpr))
   draw()
 }
 
-function onPointerMove(e: MouseEvent) {
-  pointerNX = Math.min(1, Math.max(0, e.clientX / window.innerWidth))
-  pointerNY = Math.min(1, Math.max(0, e.clientY / window.innerHeight))
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerType !== 'mouse' || reduced.value || paused.value) return
+  const r = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null
+  if (!r) return
+  frequency.value = Math.round((.5 + Math.min(1, Math.max(0, (event.clientX - r.left) / r.width)) * 3.5) * 10) / 10
+  amplitude.value = Math.round(20 + (1 - Math.min(1, Math.max(0, (event.clientY - r.top) / r.height))) * 70)
 }
 
-function nextMode() {
-  modeIndex.value = (modeIndex.value + 1) % modeNames.length
-  if (!running) draw()
-}
+function nextMode() { modeIndex.value = (modeIndex.value + 1) % modeNames.length }
+function onMotionChange() { reduced.value = media?.matches ?? false; syncAnimation() }
 
+watch([frequency, amplitude, modeIndex, () => props.scanning], draw)
+watch(paused, syncAnimation)
 onMounted(() => {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  media = window.matchMedia('(prefers-reduced-motion: reduce)')
+  reduced.value = media.matches
+  media.addEventListener('change', onMotionChange)
+  document.addEventListener('visibilitychange', syncAnimation)
   resizeCanvas()
-  if (!reduced) {
-    running = true
-    window.addEventListener('mousemove', onPointerMove, { passive: true })
-    window.addEventListener('resize', resizeCanvas)
-    raf = requestAnimationFrame(loop)
+  if (typeof ResizeObserver !== 'undefined' && canvasRef.value) {
+    resizeObserver = new ResizeObserver(resizeCanvas)
+    resizeObserver.observe(canvasRef.value)
+  } else window.addEventListener('resize', resizeCanvas)
+  if (typeof IntersectionObserver !== 'undefined' && canvasRef.value) {
+    observer = new IntersectionObserver(entries => { inView = entries.some(entry => entry.isIntersecting); syncAnimation() })
+    observer.observe(canvasRef.value)
   }
+  syncAnimation()
 })
-
 onBeforeUnmount(() => {
-  running = false
   cancelAnimationFrame(raf)
-  window.removeEventListener('mousemove', onPointerMove)
+  observer?.disconnect()
+  resizeObserver?.disconnect()
+  media?.removeEventListener('change', onMotionChange)
+  document.removeEventListener('visibilitychange', syncAnimation)
   window.removeEventListener('resize', resizeCanvas)
 })
 </script>
 
 <template>
-  <figure class="osc" :title="`波形模式：${modeNames[modeIndex]}（点击切换）`">
-    <div class="osc__screen">
-      <canvas ref="canvasRef" class="osc__canvas" aria-label="示波器波形演示" />
-      <span class="osc__readout">{{ modeNames[modeIndex] }} · {{ (0.6 + pointerNX * 2.6).toFixed(1) }}Hz</span>
-    </div>
+  <figure class="osc" :class="{ 'osc--scanning': scanning }" aria-label="可操作的示波器">
+    <button class="osc__screen" type="button" aria-label="点击切换下一种波形" @click="nextMode" @pointermove="onPointerMove">
+      <canvas ref="canvasRef" class="osc__canvas" aria-hidden="true" />
+      <span class="osc__readout">{{ modeNames[modeIndex] }} · {{ Number(frequency).toFixed(1) }} Hz</span>
+      <span class="osc__status">{{ scanning ? '正在寻找下一次实验' : reduced ? '静态信号' : paused ? '信号已冻结' : '移动鼠标或调节滑杆' }}</span>
+    </button>
     <figcaption class="osc__panel">
       <span class="osc__label">{{ props.label }}</span>
-      <span class="osc__mode-group">
-        <button
-          v-for="(name, i) in modeNames"
-          :key="name"
-          class="osc__mode"
-          :class="{ 'osc__mode--on': i === modeIndex }"
-          type="button"
-          :aria-label="`切换到 ${name} 波形`"
-          @click="modeIndex = i"
-        >
-          {{ name }}
-        </button>
-      </span>
-      <span class="osc__led" :class="{ 'osc__led--on': true }" aria-hidden="true" />
+      <div class="osc__mode-group" aria-label="信号波形">
+        <button v-for="(name, i) in modeNames" :key="name" class="osc__mode" :class="{ 'osc__mode--on': i === modeIndex }" type="button" :aria-label="`切换到 ${name} 波形`" :aria-pressed="i === modeIndex" @click="modeIndex = i">{{ name }}</button>
+      </div>
+      <button class="osc__pause" type="button" :aria-label="paused ? '继续波形' : '冻结波形'" :aria-pressed="paused" @click="paused = !paused">
+        <span class="osc__switch" aria-hidden="true" />
+        <span aria-hidden="true">{{ paused ? '继续' : '冻结' }}</span>
+      </button>
     </figcaption>
+    <div class="osc__controls">
+      <label class="osc__control"><span>频率 <output>{{ Number(frequency).toFixed(1) }} Hz</output></span><input v-model.number="frequency" type="range" min="0.5" max="4" step="0.1" aria-label="信号频率" /></label>
+      <label class="osc__control"><span>振幅 <output>{{ amplitude }}%</output></span><input v-model.number="amplitude" type="range" min="20" max="90" step="1" aria-label="信号振幅" /></label>
+    </div>
   </figure>
 </template>
 
 <style scoped>
-.osc {
-  width: min(300px, 100%);
-  user-select: none;
-  cursor: pointer;
-}
-
-.osc__screen {
-  position: relative;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(222, 233, 236, 0.04);
-}
-
-.osc__canvas {
-  display: block;
-  width: 100%;
-  height: 132px;
-}
-
-/* 屏幕右上角的读数（等宽，像真机 OSD） */
-.osc__readout {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  color: rgba(62, 224, 143, 0.85);
-  text-shadow: 0 0 8px rgba(62, 224, 143, 0.5);
-  pointer-events: none;
-}
-
-/* 仪器面板：铭牌 + 模式键 + 电源灯 */
-.osc__panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--color-border);
-  border-top: none;
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  background: var(--color-surface);
-}
-
-.osc__label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--color-text-secondary);
-}
-
-.osc__mode-group {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.osc__mode {
-  padding: 2px 7px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--color-text-tertiary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xs);
+.osc { width: 100%; margin: 0; background: var(--color-surface); border-radius: var(--radius-md); overflow: clip; }
+.osc__screen { position: relative; display: block; width: 100%; padding: 0; text-align: left; background: #0b151b; cursor: crosshair; }
+.osc__canvas { display: block; width: 100%; height: 140px; }
+.osc__readout, .osc__status { position: absolute; pointer-events: none; color: #8bf0ba; font-family: var(--font-sans); font-size: 13px; }
+.osc__readout { top: 10px; right: 12px; font-variant-numeric: tabular-nums; }
+.osc__status { left: 12px; bottom: 8px; color: #b8c9d0; font-size: 13px; }
+.osc__panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px 0; }
+.osc__label { font-family: var(--font-sans); font-size: 13px; color: var(--color-text-secondary); margin-right: auto; }
+.osc__mode-group { display: flex; gap: 2px; }
+.osc__mode, .osc__pause { min-width: 40px; min-height: 44px; padding: 7px; background: var(--color-bg-soft); color: var(--color-text-secondary); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 13px; transition: background-color 180ms ease, color 180ms ease, transform 140ms var(--ease-out); }
+.osc__mode--on { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 700; }
+.osc__pause { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
+.osc__switch {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 21px;
   background: var(--color-bg);
-  transition:
-    color var(--transition-fast),
-    border-color var(--transition-fast),
-    background-color var(--transition-fast);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
 }
-
-.osc__mode:hover {
-  color: var(--color-heading);
-  border-color: var(--color-border-strong);
-}
-
-.osc__mode--on {
-  color: var(--color-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
-  background: var(--color-primary-soft);
-}
-
-.osc__led {
+.osc__switch::before {
+  content: '';
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--fix-green);
-  box-shadow: 0 0 6px var(--fix-green);
-  flex-shrink: 0;
+  background: var(--color-success);
+  transform: translateY(-3px);
+  transition: transform 140ms var(--ease-out);
 }
-
-.osc:focus-within {
-  outline: none;
-}
-
-.osc__mode:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .osc {
-    cursor: default;
-  }
-}
+.osc__pause[aria-pressed='true'] .osc__switch::before { transform: translateY(3px); background: var(--color-primary); }
+.osc__mode:active, .osc__pause:active { transform: scale(.96); }
+.osc button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; }
+.osc__controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 12px 16px; }
+.osc__control { min-width: 0; color: var(--color-text-secondary); font-size: 13px; }
+.osc__control > span { display: flex; justify-content: space-between; gap: 8px; }
+.osc__control output { color: var(--color-heading); font-variant-numeric: tabular-nums; }
+.osc__control input { display: block; width: 100%; height: 32px; padding: 0; cursor: ew-resize; accent-color: var(--color-primary); }
+.osc__control input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .osc__mode:hover, .osc__pause:hover { color: var(--color-primary); background: var(--color-primary-soft); } }
+@media (prefers-reduced-motion: reduce) { .osc__mode, .osc__pause, .osc__switch::before { transition: none; } .osc__mode:active, .osc__pause:active { transform: none; } }
 </style>

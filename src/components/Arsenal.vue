@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
+import { getCategories, getTags } from '@/api/post'
+
+defineOptions({ name: 'LabArsenal' })
 
 /**
  * 装备库 ARSENAL —— 技术栈的游戏化陈列
@@ -24,9 +28,31 @@ const gears: Gear[] = [
 /* 进入视口：熟练度条填充 */
 const rootEl = ref<HTMLElement | null>(null)
 const active = ref(false)
+const categories = ref<string[]>([])
+const tags = ref<string[]>([])
+const aliases: Record<string, string[]> = {
+  'Vue 3': ['vue', 'vue3', 'vuejs'],
+  TypeScript: ['typescript', 'ts'],
+  CSS: ['css', 'css3'],
+  Vite: ['vite'],
+  'Node.js': ['node', 'nodejs'],
+  'Spring Boot': ['spring', 'springboot'],
+}
+const normalize = (name: string) => name.toLowerCase().replace(/[\s._-]/g, '')
+const destinations = computed(() => Object.fromEntries(gears.map(gear => {
+  const matches = (name: string) => (aliases[gear.name] ?? []).includes(normalize(name))
+  const category = categories.value.find(matches)
+  const tag = tags.value.find(matches)
+  const query = new URLSearchParams(category ? { category } : tag ? { tag } : { q: gear.name })
+  return [gear.name, `${category || tag ? '/articles' : '/search'}?${query}`]
+})))
 let observer: IntersectionObserver | undefined
 
 onMounted(() => {
+  Promise.allSettled([getCategories(), getTags()]).then(([cats, labels]) => {
+    if (cats.status === 'fulfilled' && Array.isArray(cats.value)) categories.value = cats.value.flatMap(item => typeof item?.name === 'string' ? [item.name] : [])
+    if (labels.status === 'fulfilled' && Array.isArray(labels.value)) tags.value = labels.value.flatMap(item => typeof item?.name === 'string' ? [item.name] : [])
+  })
   if (typeof IntersectionObserver === 'undefined') {
     active.value = true
     return
@@ -48,9 +74,11 @@ onBeforeUnmount(() => observer?.disconnect())
 
 <template>
   <div ref="rootEl" class="arsenal" :class="{ 'is-on': active }">
-    <article
+    <RouterLink
       v-for="(gear, i) in gears"
       :key="gear.name"
+      :to="destinations[gear.name] || `/search?q=${encodeURIComponent(gear.name)}`"
+      :aria-label="`阅读 ${gear.name} 相关文章`"
       class="gear"
       :class="[`gear--${gear.rarity.toLowerCase()}`, { 'is-on': active }]"
       :style="{ '--gear-i': i, '--bar-w': gear.mastery + '%' }"
@@ -112,7 +140,8 @@ onBeforeUnmount(() => observer?.disconnect())
           <span class="gear__bar-segments" />
         </div>
       </div>
-    </article>
+      <span class="gear__read">阅读相关文章 <span aria-hidden="true">↗</span></span>
+    </RouterLink>
   </div>
 </template>
 
@@ -125,6 +154,8 @@ onBeforeUnmount(() => observer?.disconnect())
 
 /* ── 装备卡 ── */
 .gear {
+  display: block;
+  color: var(--color-heading);
   position: relative;
   padding: 26px 20px 20px;
   background: var(--color-surface);
@@ -142,6 +173,12 @@ onBeforeUnmount(() => observer?.disconnect())
   transform: translateY(-6px);
   box-shadow: var(--shadow-lg);
 }
+
+.gear:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.gear__read { display: flex; justify-content: space-between; margin-top: 18px; color: var(--color-primary); font-family: var(--font-sans); font-size: 14px; }
+.gear__read > span { transition: transform 180ms var(--ease-out); }
+.gear:is(:hover, :focus-visible) .gear__read > span { transform: translate(3px, -3px); }
+.gear:active { transform: translateY(-2px); }
 
 /* 稀有度边框光 */
 .gear--ssr { border-color: color-mix(in srgb, #e8a33d 55%, transparent); }
@@ -258,14 +295,16 @@ onBeforeUnmount(() => observer?.disconnect())
 .gear__bar-fill {
   display: block;
   height: 100%;
-  width: 0;
+  width: var(--bar-w);
   background: linear-gradient(90deg, var(--color-primary), #ffa14f);
-  transition: width 0.9s var(--ease-out);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.9s var(--ease-out);
   transition-delay: calc(0.1s + var(--gear-i) * 0.09s);
 }
 
 .is-on .gear__bar-fill {
-  width: var(--bar-w);
+  transform: scaleX(1);
 }
 
 .gear__bar-segments {
@@ -302,9 +341,8 @@ onBeforeUnmount(() => observer?.disconnect())
     transition: none;
   }
 
-  .is-on .gear__bar-fill {
-    width: var(--bar-w);
-  }
+  .gear__bar-fill { transform: scaleX(1); }
+  .gear__read > span { transition: none; transform: none !important; }
 
   .gear--ssr:hover::after {
     animation: none;

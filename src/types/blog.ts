@@ -40,6 +40,10 @@ export interface PostInput {
 /** 文件上传返回 */
 export interface UploadResult {
   url: string
+  /** 媒体类型：image / video（后端按文件真实类型判定） */
+  type?: 'image' | 'video'
+  /** 文件字节数 */
+  size?: number
 }
 
 /* ── 互动模块（阶段 5：点赞 / 评论） ── */
@@ -76,8 +80,14 @@ export interface Author {
   bio: string
   socials: SocialLink[]
   skills: string[]
+  movies?: MovieCover[]
   /** 后端 AuthorVO 返回，可选 */
   avatar?: string
+}
+
+export interface MovieCover {
+  title: string
+  img: string
 }
 
 export interface SocialLink {

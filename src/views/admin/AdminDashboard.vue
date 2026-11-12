@@ -12,9 +12,11 @@ const stats = ref<DashboardStats | null>(null)
 const recentPosts = ref<Post[]>([])
 const pendingComments = ref<Comment[]>([])
 const loading = ref(false)
+const error = ref('')
 
 async function load() {
   loading.value = true
+  error.value = ''
   try {
     const [s, posts, comments] = await Promise.all([
       getStats(),
@@ -25,7 +27,7 @@ async function load() {
     recentPosts.value = posts.list
     pendingComments.value = comments.list
   } catch (e) {
-    console.error('加载概览失败:', e)
+    error.value = e instanceof Error ? e.message : '加载概览失败'
   } finally {
     loading.value = false
   }
@@ -50,35 +52,36 @@ onMounted(load)
         <p class="admin-pagehead__sub">站点数据概览与快捷操作</p>
       </div>
       <div class="admin-pagehead__actions">
-        <RouterLink to="/admin/posts/new" class="btn btn--primary btn--md">✍️ 写新文章</RouterLink>
+        <RouterLink to="/admin/posts/new" class="btn btn--primary btn--md">写新文章</RouterLink>
       </div>
     </div>
 
+    <div v-if="error" class="admin-alert admin-alert--error" role="alert">{{ error }} <button class="btn btn--link" @click="load">重新加载</button></div>
     <!-- 统计卡片 -->
-    <div class="stat-grid" v-reveal>
+    <div class="stat-grid">
       <div class="stat stat--primary">
-        <span class="stat__ico">📄</span>
+
         <div class="stat__body">
           <span class="stat__num">{{ stats ? stats.postsPublished : '–' }}</span>
           <span class="stat__label">已发布文章</span>
         </div>
       </div>
       <div class="stat stat--info">
-        <span class="stat__ico">📚</span>
+
         <div class="stat__body">
           <span class="stat__num">{{ stats ? stats.postsTotal : '–' }}</span>
           <span class="stat__label">文章总数（含草稿）</span>
         </div>
       </div>
       <div class="stat stat--accent">
-        <span class="stat__ico">💬</span>
+
         <div class="stat__body">
           <span class="stat__num">{{ stats ? stats.commentsTotal : '–' }}</span>
           <span class="stat__label">评论总数</span>
         </div>
       </div>
       <div class="stat stat--warning">
-        <span class="stat__ico">⏳</span>
+
         <div class="stat__body">
           <span class="stat__num" :class="{ 'stat__num--warn': stats && stats.commentsPending > 0 }">
             {{ stats ? stats.commentsPending : '–' }}
@@ -87,14 +90,14 @@ onMounted(load)
         </div>
       </div>
       <div class="stat stat--success">
-        <span class="stat__ico">👁️</span>
+
         <div class="stat__body">
           <span class="stat__num">{{ stats ? stats.viewsTotal.toLocaleString() : '–' }}</span>
           <span class="stat__label">总浏览量</span>
         </div>
       </div>
       <div class="stat stat--rose">
-        <span class="stat__ico">❤️</span>
+
         <div class="stat__body">
           <span class="stat__num">{{ stats ? stats.likesTotal : '–' }}</span>
           <span class="stat__label">总点赞</span>
@@ -105,21 +108,21 @@ onMounted(load)
     <!-- 快捷操作 -->
     <div class="qa-grid">
       <RouterLink to="/admin/posts/new" class="qa">
-        <span class="qa__ico">✍️</span>
+
         <span class="qa__text">
           <span class="qa__title">撰写文章</span>
           <span class="qa__sub">发布新内容到博客</span>
         </span>
       </RouterLink>
       <RouterLink to="/admin/comments" class="qa">
-        <span class="qa__ico">💬</span>
+
         <span class="qa__text">
           <span class="qa__title">审核评论</span>
           <span class="qa__sub">处理读者互动与反馈</span>
         </span>
       </RouterLink>
       <RouterLink to="/admin/author" class="qa">
-        <span class="qa__ico">👤</span>
+
         <span class="qa__text">
           <span class="qa__title">编辑关于页</span>
           <span class="qa__sub">更新作者信息与简介</span>
@@ -133,7 +136,7 @@ onMounted(load)
       <!-- 最近文章 -->
       <div class="admin-panel">
         <div class="admin-panel__head">
-          <span class="admin-panel__title"><span class="admin-panel__title-ico">📄</span> 最近文章</span>
+          <span class="admin-panel__title"> 最近文章</span>
           <RouterLink to="/admin/posts" class="admin-panel__more">查看全部 →</RouterLink>
         </div>
         <div class="admin-panel__body">
@@ -159,10 +162,9 @@ onMounted(load)
       </div>
 
       <!-- 待审核评论 -->
-      <div class="admin-panel">
+      <div class="admin-panel moderation-panel">
         <div class="admin-panel__head">
-          <span class="admin-panel__title"><span class="admin-panel__title-ico">⏳</span> 待审核评论</span>
-          <RouterLink to="/admin/comments" class="admin-panel__more">去审核 →</RouterLink>
+          <span class="admin-panel__title"> 待审核评论</span>
         </div>
         <div class="admin-panel__body">
           <ul class="mini-list">
@@ -177,10 +179,17 @@ onMounted(load)
               </div>
               <RouterLink to="/admin/comments" class="mini__op">审核</RouterLink>
             </li>
-            <li v-if="!pendingComments.length" class="admin-empty" style="padding: 28px">暂无待审核评论 🎉</li>
+            <li v-if="!pendingComments.length" class="admin-empty" style="padding: 28px">暂无待审核评论</li>
           </ul>
+          <RouterLink to="/admin/comments" class="moderation-panel__action">{{ stats ? stats.commentsPending : '—' }} 条待处理 · 打开审核队列 →</RouterLink>
         </div>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.moderation-panel { display: flex; flex-direction: column; }
+.moderation-panel .admin-panel__body { flex: 1; display: flex; flex-direction: column; }
+.moderation-panel__action { margin-top: auto; padding-top: 20px; font-size: 13px; color: var(--color-primary); }
+</style>

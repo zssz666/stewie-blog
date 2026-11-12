@@ -5,6 +5,7 @@ const props = defineProps<{
   page: number
   pages: number
   total: number
+  hrefForPage?: (page: number) => string
 }>()
 
 const emit = defineEmits<{
@@ -37,47 +38,59 @@ function go(p: number) {
   if (p < 1 || p > props.pages || p === props.page) return
   emit('change', p)
 }
+
+function navigate(event: MouseEvent, p: number) {
+  if (props.hrefForPage && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0)) return
+  event.preventDefault()
+  go(p)
+}
 </script>
 
 <template>
   <nav v-if="pages > 1" class="pagination" aria-label="分页导航">
-    <button
+    <component
+      :is="hrefForPage && canPrev ? 'a' : 'button'"
+      :href="hrefForPage && canPrev ? hrefForPage(page - 1) : undefined"
       type="button"
       class="pagination__btn pagination__btn--nav"
       :disabled="!canPrev"
       aria-label="上一页"
-      @click="go(page - 1)"
+      @click="navigate($event, page - 1)"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="m15 18-6-6 6-6" />
       </svg>
-    </button>
+    </component>
 
     <template v-for="(p, idx) in pagesList" :key="idx">
       <span v-if="p === '...'" class="pagination__ellipsis">…</span>
-      <button
+      <component
         v-else
+        :is="hrefForPage ? 'a' : 'button'"
+        :href="hrefForPage ? hrefForPage(p) : undefined"
         type="button"
         class="pagination__btn"
         :class="{ 'pagination__btn--active': p === page }"
         :aria-current="p === page ? 'page' : undefined"
-        @click="go(p)"
+        @click="navigate($event, p)"
       >
         {{ p }}
-      </button>
+      </component>
     </template>
 
-    <button
+    <component
+      :is="hrefForPage && canNext ? 'a' : 'button'"
+      :href="hrefForPage && canNext ? hrefForPage(page + 1) : undefined"
       type="button"
       class="pagination__btn pagination__btn--nav"
       :disabled="!canNext"
       aria-label="下一页"
-      @click="go(page + 1)"
+      @click="navigate($event, page + 1)"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="m9 18 6-6-6-6" />
       </svg>
-    </button>
+    </component>
   </nav>
 </template>
 

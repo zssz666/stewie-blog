@@ -20,6 +20,7 @@ export interface EmotionBallEngine {
   /** 4 段递减抛物线弹跳 */
   bounce(): EmotionBallEngine
   setActive(on: boolean): void
+  renderStatic(): void
   replay(): void
   destroy(): void
   on(evt: 'change' | 'tips' | 'error', cb: (payload: never) => void): EmotionBallEngine
@@ -51,6 +52,8 @@ export interface EmotionBallCreateOptions {
   label?: string
   /** 轻量模式：关闭 zzz / 彩带 / 撒花特效 */
   lite?: boolean
+  /** 只保留眼部小动作，关闭球身动画 */
+  reducedMotion?: boolean
   autostart?: boolean
   fallbackId?: string
 }

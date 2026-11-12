@@ -25,7 +25,7 @@ export const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
  */
 export function resolveAsset(url?: string): string {
   if (!url) return ''
-  if (/^https?:\/\//.test(url)) return url
+  if (/^https?:\/\//i.test(url)) return url
   const origin = API_BASE.replace(/\/api\/?$/, '')
   return origin && /^https?:\/\//.test(origin) ? origin + url : url
 }
