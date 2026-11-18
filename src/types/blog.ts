@@ -1,3 +1,16 @@
+export const POST_TYPE = { note: 1, article: 2 } as const
+export type PostType = (typeof POST_TYPE)[keyof typeof POST_TYPE]
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+  [POST_TYPE.note]: '随手记',
+  [POST_TYPE.article]: '技术文章',
+}
+
+export function parsePostType(value: unknown): PostType | undefined {
+  if (value === String(POST_TYPE.note)) return POST_TYPE.note
+  if (value === String(POST_TYPE.article)) return POST_TYPE.article
+}
+
 export interface Post {
   id: number
   slug: string
@@ -8,6 +21,7 @@ export interface Post {
   cover?: string
   coverColor: string
   category: string
+  postType: PostType
   tag: string
   /** 标签名列表（多标签） */
   tags?: string[]
@@ -28,6 +42,7 @@ export interface PostInput {
   content: string
   cover?: string
   categoryId?: number | null
+  postType: PostType
   /** 标签名列表 */
   tags?: string[]
   /** 0=草稿 1=已发布 */

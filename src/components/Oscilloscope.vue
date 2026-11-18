@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
     <button class="osc__screen" type="button" aria-label="点击切换下一种波形" @click="nextMode" @pointermove="onPointerMove">
       <canvas ref="canvasRef" class="osc__canvas" aria-hidden="true" />
       <span class="osc__readout">{{ modeNames[modeIndex] }} · {{ Number(frequency).toFixed(1) }} Hz</span>
-      <span class="osc__status">{{ scanning ? '正在寻找下一次实验' : reduced ? '静态信号' : paused ? '信号已冻结' : '移动鼠标或调节滑杆' }}</span>
+      <span class="osc__status">{{ scanning ? '正在寻找下一次实验' : reduced ? '静态信号' : paused ? '信号已冻结' : '点一下切换波形' }}</span>
     </button>
     <figcaption class="osc__panel">
       <span class="osc__label">{{ props.label }}</span>
@@ -135,10 +135,13 @@ onBeforeUnmount(() => {
         <span aria-hidden="true">{{ paused ? '继续' : '冻结' }}</span>
       </button>
     </figcaption>
-    <div class="osc__controls">
-      <label class="osc__control"><span>频率 <output>{{ Number(frequency).toFixed(1) }} Hz</output></span><input v-model.number="frequency" type="range" min="0.5" max="4" step="0.1" aria-label="信号频率" /></label>
-      <label class="osc__control"><span>振幅 <output>{{ amplitude }}%</output></span><input v-model.number="amplitude" type="range" min="20" max="90" step="1" aria-label="信号振幅" /></label>
-    </div>
+    <details class="osc__details">
+      <summary>调节信号</summary>
+      <div class="osc__controls">
+        <label class="osc__control"><span>频率 <output>{{ Number(frequency).toFixed(1) }} Hz</output></span><input v-model.number="frequency" type="range" min="0.5" max="4" step="0.1" aria-label="信号频率" /></label>
+        <label class="osc__control"><span>振幅 <output>{{ amplitude }}%</output></span><input v-model.number="amplitude" type="range" min="20" max="90" step="1" aria-label="信号振幅" /></label>
+      </div>
+    </details>
   </figure>
 </template>
 
@@ -150,6 +153,7 @@ onBeforeUnmount(() => {
 .osc__readout { top: 10px; right: 12px; font-variant-numeric: tabular-nums; }
 .osc__status { left: 12px; bottom: 8px; color: #b8c9d0; font-size: 13px; }
 .osc__panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px 0; }
+.osc__details summary { padding: 10px 12px; color: var(--color-accent); cursor: pointer; font-size: 13px; }
 .osc__label { font-family: var(--font-sans); font-size: 13px; color: var(--color-text-secondary); margin-right: auto; }
 .osc__mode-group { display: flex; gap: 2px; }
 .osc__mode, .osc__pause { min-width: 40px; min-height: 44px; padding: 7px; background: var(--color-bg-soft); color: var(--color-text-secondary); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 13px; transition: background-color 180ms ease, color 180ms ease, transform 140ms var(--ease-out); }

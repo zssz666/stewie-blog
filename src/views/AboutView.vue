@@ -192,15 +192,8 @@ const socialIcons: Record<string, string> = {
 
 <template>
   <div class="about">
-    <!-- ── 页头：标题 + 研究员标签 ── -->
     <header class="container about__head" v-reveal>
-      <h1 class="about__title">关于</h1>
-      <ul class="about__badges">
-        <li class="about__badge">🧪 踩坑实验爱好者</li>
-        <li class="about__badge">🔨 设计开发一条龙</li>
-        <li class="about__badge">🏃 脚踏实地行动派</li>
-        <li class="about__badge">🔍 分享与热心互助</li>
-      </ul>
+      <h1 class="about__title">研究员档案</h1>
     </header>
 
     <!-- ── Hero 横幅：研究员自我登记 ── -->
@@ -252,6 +245,12 @@ const socialIcons: Record<string, string> = {
     </section>
 
     <!-- ── 大字标语 ── -->
+    <nav class="container about__index" aria-label="档案目录">
+      <a href="#about-focus">平时关注</a>
+      <a v-if="author.movies?.length" href="#about-movies">影视收藏</a>
+      <a href="#about-music">常听的音乐</a>
+    </nav>
+
     <section class="container about__motto" v-reveal="200">
       <span class="about__motto-deco about__motto-deco--circle" aria-hidden="true" />
       <span class="about__motto-deco about__motto-deco--dot" aria-hidden="true" />
@@ -294,7 +293,7 @@ const socialIcons: Record<string, string> = {
       </article>
 
       <!-- 电影/动漫卡 -->
-      <article v-if="author.movies?.length" class="bento bento--movies" v-reveal="350">
+      <article v-if="author.movies?.length" id="about-movies" class="bento bento--movies" v-reveal="350">
         <span class="bento__idx" aria-hidden="true">#03</span>
         <p class="bento__label">影视收藏</p>
         <div class="bento__movies-grid">
@@ -354,7 +353,7 @@ const socialIcons: Record<string, string> = {
       </article>
 
       <!-- 关注偏好卡 -->
-      <article class="bento bento--focus" v-reveal="590">
+      <article id="about-focus" class="bento bento--focus" v-reveal="590">
         <span class="bento__idx" aria-hidden="true">#07</span>
         <p class="bento__label">关注偏好</p>
         <h3 class="bento__focus-title">前端生态</h3>
@@ -363,7 +362,7 @@ const socialIcons: Record<string, string> = {
       </article>
 
       <!-- 音乐偏好卡 -->
-      <article class="bento bento--music" v-reveal="650">
+      <article id="about-music" class="bento bento--music" v-reveal="650">
         <span class="bento__idx" aria-hidden="true">#08</span>
         <p class="bento__label">音乐偏好</p>
         <h3 class="bento__music-title">Lo-fi · 纯音乐 · 华语流行</h3>
@@ -431,7 +430,6 @@ const socialIcons: Record<string, string> = {
 
     <!-- FAQ 常见问题（AEO：内容随 DOM 直出，供答案引擎与 AI 助手引用） -->
     <section class="container about__faq" v-reveal="120">
-      <p class="about__faq-tag">F.A.Q</p>
       <h2 class="about__faq-title">实验台常见提问</h2>
       <div class="about__faq-list">
         <details v-for="f in faqs" :key="f.q" class="about__faq-item">
@@ -484,44 +482,21 @@ const socialIcons: Record<string, string> = {
   to { width: 72px; }
 }
 
-.about__badges {
+.about__index {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin: 26px 0 0;
-  padding: 0;
-  list-style: none;
+  gap: 4px 20px;
+  margin-top: 16px;
 }
-
-.about__badge {
-  padding: 7px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  transition: color var(--transition-fast), border-color var(--transition-fast), transform 0.3s var(--ease-spring);
-  /* 逐个弹入 */
-  animation: badge-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+.about__index a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
-
-.about__badges .about__badge:nth-child(1) { animation-delay: 0.12s; }
-.about__badges .about__badge:nth-child(2) { animation-delay: 0.22s; }
-.about__badges .about__badge:nth-child(3) { animation-delay: 0.32s; }
-.about__badges .about__badge:nth-child(4) { animation-delay: 0.42s; }
-
-@keyframes badge-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.92); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.about__badge:hover {
-  color: var(--color-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-  transform: translateY(-2px);
-}
+.about__bento [id] { scroll-margin-top: calc(var(--header-height) + 20px); }
 
 /* ── Hero 横幅 ── */
 .about__hero {
@@ -1651,7 +1626,6 @@ const socialIcons: Record<string, string> = {
   .about__motto-deco,
   .about__hero-wave-path,
   .about__avatar-ring,
-  .about__badge,
   .bento__emoji,
   .bento__focus-glow,
   .bento__eq i {
@@ -1663,7 +1637,6 @@ const socialIcons: Record<string, string> = {
   }
 
   .bento:hover,
-  .about__badge:hover,
   .about__social:hover,
   .bento__stack-item:hover,
   .bento__hobbies-tags span:hover,
@@ -1677,16 +1650,6 @@ const socialIcons: Record<string, string> = {
    ============================================================ */
 .about__faq {
   margin-top: 64px;
-}
-
-.about__faq-tag {
-  margin: 0 0 10px;
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.35em;
-  color: var(--color-primary);
-  text-align: center;
 }
 
 .about__faq-title {

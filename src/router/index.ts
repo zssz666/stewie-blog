@@ -39,7 +39,7 @@ const router = createRouter({
     {
       // 管理后台（作者入口，需登录）
       path: '/admin',
-      component: () => import('../components/AdminLayout.vue'),
+      component: () => import('../views/admin/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
         {
@@ -85,7 +85,8 @@ const router = createRouter({
       component: NotFoundView,
     },
   ],
-  scrollBehavior() {
+  scrollBehavior(to) {
+    if (to.hash === '#container-query-demo') return false
     return { top: 0 }
   },
 })

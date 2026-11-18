@@ -5,6 +5,8 @@ import { useThemeStore } from '@/stores/theme'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { apiLogout } from '@/api/auth'
+import { parsePostType, POST_TYPE, POST_TYPE_LABELS } from '@/types/blog'
+import QuickSearch from './QuickSearch.vue'
 import IconSun from './icons/IconSun.vue'
 import IconMoon from './icons/IconMoon.vue'
 import IconMenu from './icons/IconMenu.vue'
@@ -20,7 +22,8 @@ const scrolled = ref(false)
 const menuOpen = ref(false)
 const showTitle = ref(false) // 滚动后由导航链接切换为展示页面标题
 const menuButton = ref<HTMLButtonElement | null>(null)
-const searchInput = useTemplateRef<HTMLInputElement>('searchInput')
+const searchButton = useTemplateRef<HTMLButtonElement>('searchButton')
+const quickSearch = useTemplateRef<InstanceType<typeof QuickSearch>>('quickSearch')
 const searchKey = navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'
 
 const isHome = computed(() => route.path === '/')
@@ -35,6 +38,8 @@ const pageTitleMap: Record<string, string> = {
 
 const currentTitle = computed(() => {
   if (route.name === 'post') return uiStore.postTitle || '实验记录'
+  const postType = parsePostType(route.query.postType)
+  if (route.name === 'articles' && postType !== undefined) return POST_TYPE_LABELS[postType]
   return pageTitleMap[route.path] ?? ''
 })
 
@@ -44,10 +49,15 @@ const navClass = computed(() => ({
 }))
 
 const navLinks = [
-  { to: '/', label: '首页' },
-  { to: '/articles', label: '文章' },
-  { to: '/about', label: '关于' },
+  { path: '/', label: '首页' },
+  { path: '/articles', label: POST_TYPE_LABELS[POST_TYPE.article], postType: POST_TYPE.article },
+  { path: '/articles', label: POST_TYPE_LABELS[POST_TYPE.note], postType: POST_TYPE.note },
+  { path: '/about', label: '关于' },
 ]
+
+function isCurrentNav(link: (typeof navLinks)[number]) {
+  return route.path === link.path && parsePostType(route.query.postType) === link.postType
+}
 
 function handleScroll() {
   const currentY = window.scrollY
@@ -60,6 +70,15 @@ function closeMenu() {
   menuOpen.value = false
 }
 
+function openSearch() {
+  const active = document.activeElement
+  const trigger = !menuOpen.value && active instanceof HTMLElement && active !== document.body
+    ? active
+    : searchButton.value
+  closeMenu()
+  quickSearch.value?.open(trigger)
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && menuOpen.value) {
     closeMenu()
@@ -69,22 +88,12 @@ function onKeydown(event: KeyboardEvent) {
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey) return
   if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
 
-  const input = searchInput.value
-  if (!input?.getClientRects().length) return
   event.preventDefault()
-  closeMenu()
-  input.focus()
+  openSearch()
 }
 
 const displayName = computed(() => authStore.user?.nickname || authStore.user?.username || '')
 const avatarText = computed(() => (displayName.value || 'U').charAt(0).toUpperCase())
-
-/* ── 搜索入口：跳转到 /search?q= ── */
-const searchQuery = ref('')
-function goSearch() {
-  const q = searchQuery.value.trim()
-  router.push(q ? { name: 'search', query: { q } } : { name: 'search' })
-}
 
 async function handleLogout() {
   await apiLogout() // 尽力通知后端；无状态 JWT 失败也不影响前端清会话
@@ -101,6 +110,7 @@ watch(
     scrolled.value = false
     showTitle.value = false
     closeMenu()
+    quickSearch.value?.close()
   },
 )
 
@@ -136,37 +146,38 @@ onBeforeUnmount(() => {
 
       <nav class="navbar__nav" :class="{ 'navbar__nav--hidden': showTitle }">
         <RouterLink
-          v-for="(link, i) in navLinks"
-          :key="link.to"
-          :to="link.to"
-          class="navbar__link"
+          v-for="link in navLinks"
+          :key="link.label"
+          v-slot="{ href, navigate }"
+          :to="{ path: link.path, query: { postType: link.postType } }"
+          custom
         >
-          <span class="navbar__ch">CH{{ i + 1 }}</span>
-          <span class="navbar__link-text">{{ link.label }}</span>
+          <a
+            :href="href"
+            class="navbar__link"
+            :aria-current="isCurrentNav(link) ? 'page' : undefined"
+            @click="navigate"
+          >{{ link.label }}</a>
         </RouterLink>
       </nav>
 
       <div class="navbar__actions">
-        <!-- 搜索入口：始终可见（公开搜索） -->
-        <form class="navbar__search" role="search" @submit.prevent="goSearch">
-          <button type="submit" class="navbar__search-btn" aria-label="搜索实验记录">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          </button>
-          <input
-            ref="searchInput"
-            v-model="searchQuery"
-            class="navbar__search-input"
-            type="search"
-            placeholder="搜索实验记录…"
-            aria-label="搜索实验记录"
-            aria-keyshortcuts="Control+K Meta+K"
-            autocomplete="off"
-          />
+        <button
+          ref="searchButton"
+          type="button"
+          class="navbar__search"
+          aria-label="搜索实验记录"
+          aria-keyshortcuts="Control+K Meta+K"
+          aria-haspopup="dialog"
+          @click="openSearch"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <span class="navbar__search-label">搜索实验记录</span>
           <kbd class="navbar__search-key" aria-hidden="true">{{ searchKey }} K</kbd>
-        </form>
+        </button>
 
         <!-- 登录态：管理后台入口 + 头像 + 用户名 + 退出（仅作者本人会话可见） -->
         <template v-if="authStore.isLoggedIn">
@@ -210,14 +221,18 @@ onBeforeUnmount(() => {
     <Transition name="drawer">
       <nav v-if="menuOpen" id="mobile-navigation" class="navbar__drawer" aria-label="移动端导航">
         <RouterLink
-          v-for="(link, i) in navLinks"
-          :key="link.to"
-          :to="link.to"
-          class="navbar__drawer-link"
-          @click="closeMenu"
+          v-for="link in navLinks"
+          :key="link.label"
+          v-slot="{ href, navigate }"
+          :to="{ path: link.path, query: { postType: link.postType } }"
+          custom
         >
-          <span class="navbar__ch">CH{{ i + 1 }}</span>
-          <span class="navbar__link-text">{{ link.label }}</span>
+          <a
+            :href="href"
+            class="navbar__drawer-link"
+            :aria-current="isCurrentNav(link) ? 'page' : undefined"
+            @click="navigate"
+          >{{ link.label }}</a>
         </RouterLink>
         <template v-if="authStore.isLoggedIn">
           <RouterLink to="/admin" class="navbar__drawer-link navbar__drawer-account" @click="closeMenu">控制台</RouterLink>
@@ -229,6 +244,7 @@ onBeforeUnmount(() => {
     <Transition name="fade">
       <div v-if="menuOpen" class="navbar__backdrop" @click="closeMenu" />
     </Transition>
+    <QuickSearch ref="quickSearch" />
   </header>
 </template>
 
@@ -381,14 +397,6 @@ onBeforeUnmount(() => {
 }
 
 /* 通道编号小标 */
-.navbar__ch {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--color-text-tertiary);
-  transition: color var(--transition-fast);
-}
-
 /* LED 指示灯：active 通道点亮 */
 .navbar__link::after {
   content: '';
@@ -405,21 +413,13 @@ onBeforeUnmount(() => {
   color: var(--color-heading);
 }
 
-.navbar__link:hover .navbar__ch {
-  color: var(--color-text-secondary);
-}
-
-.navbar__link.router-link-exact-active {
+.navbar__link[aria-current='page'] {
   color: var(--color-primary);
   border-color: var(--color-border);
   background: var(--color-surface);
 }
 
-.navbar__link.router-link-exact-active .navbar__ch {
-  color: var(--color-primary);
-}
-
-.navbar__link.router-link-exact-active::after {
+.navbar__link[aria-current='page']::after {
   background: var(--color-primary);
   box-shadow: 0 0 8px var(--color-primary);
 }
@@ -466,50 +466,29 @@ onBeforeUnmount(() => {
 /* 搜索框：仪器输入位 */
 .navbar__search {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 2px;
-  padding: 4px 6px 4px 10px;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 8px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font: 13px var(--font-sans);
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 
-.navbar__search:focus-within {
+.navbar__search:focus-visible {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
-.navbar__search-btn {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.navbar__search-btn:hover {
+.navbar__search:hover {
   color: var(--color-primary);
 }
 
-.navbar__search-input {
-  width: 128px;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  padding: 4px 6px 4px 2px;
-}
-
-.navbar__search-input::placeholder {
-  color: var(--color-text-tertiary);
-}
+.navbar__search-label { white-space: nowrap; }
 
 .navbar__search-key {
   flex-shrink: 0;
@@ -675,10 +654,6 @@ onBeforeUnmount(() => {
     color var(--transition-fast);
 }
 
-.navbar__drawer-link .navbar__ch {
-  font-size: 10.5px;
-}
-
 .navbar__drawer-account { display: none; }
 
 .navbar__drawer-link::after {
@@ -691,13 +666,13 @@ onBeforeUnmount(() => {
 }
 
 .navbar__drawer-link:hover,
-.navbar__drawer-link.router-link-exact-active {
+.navbar__drawer-link[aria-current='page'] {
   background: var(--color-primary-softer);
   color: var(--color-primary);
   border-color: var(--color-border);
 }
 
-.navbar__drawer-link.router-link-exact-active::after {
+.navbar__drawer-link[aria-current='page']::after {
   background: var(--color-primary);
   box-shadow: 0 0 8px var(--color-primary);
 }
@@ -749,12 +724,12 @@ onBeforeUnmount(() => {
     display: none;
   }
 
-  /* 移动端：搜索框只显示图标按钮，点击进入 /search 页输入 */
+  /* 小屏保留图标入口，腾出菜单与主题开关的空间。 */
   .navbar__search {
     padding: 6px;
     border-radius: var(--radius-sm);
   }
-  .navbar__search-input, .navbar__search-key {
+  .navbar__search-label, .navbar__search-key {
     display: none;
   }
 }
@@ -766,7 +741,7 @@ onBeforeUnmount(() => {
   .navbar__title, .navbar__user, .navbar__logout, .navbar__admin-link { display: none; }
   .navbar__actions { gap: 6px; }
   .navbar__search { padding: 4px; }
-  .theme-toggle, .navbar__burger, .navbar__search-btn { width: 40px; height: 40px; }
+  .theme-toggle, .navbar__burger, .navbar__search { width: 44px; height: 44px; }
   .navbar__drawer-account { display: flex; }
 }
 

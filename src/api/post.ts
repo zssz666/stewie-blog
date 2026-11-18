@@ -1,4 +1,4 @@
-import type { Category, PageResult, Post, Tag } from '@/types/blog'
+import type { Category, PageResult, Post, PostType, Tag } from '@/types/blog'
 import { request } from './request'
 
 /** 文章列表查询参数 */
@@ -7,11 +7,11 @@ export interface PostQuery {
   size?: number
   category?: string
   tag?: string
+  postType?: PostType
 }
 
 /**
- * 分页获取已发布文章列表（支持 分类/标签 过滤）
- * 对应后端 GET /api/posts?page=&size=&category=&tag=
+ * 分页获取已发布文章列表，支持分类、标签与内容类型筛选。
  */
 export async function getPosts(query: PostQuery = {}): Promise<PageResult<Post>> {
   const params = new URLSearchParams()
@@ -19,8 +19,13 @@ export async function getPosts(query: PostQuery = {}): Promise<PageResult<Post>>
   if (query.size != null) params.set('size', String(query.size))
   if (query.category) params.set('category', query.category)
   if (query.tag) params.set('tag', query.tag)
+  if (query.postType !== undefined) params.set('postType', String(query.postType))
   const qs = params.toString()
   const raw = await request<any>(qs ? `/posts?${qs}` : '/posts')
+  const list: Post[] = Array.isArray(raw) ? raw : raw?.list ?? []
+  if (query.postType !== undefined && list.some((post) => post.postType !== query.postType)) {
+    throw new Error('文章列表未按内容类型返回，请确认后端已更新')
+  }
   // 兼容后端两种返回结构：
   //   新版: PageResult { list, total, pages, page, size }
   //   旧版: 裸数组 Post[]
@@ -28,7 +33,7 @@ export async function getPosts(query: PostQuery = {}): Promise<PageResult<Post>>
     return { list: raw, total: raw.length, page: 1, size: raw.length }
   }
   return {
-    list: raw?.list ?? [],
+    list,
     total: raw?.total ?? 0,
     page: raw?.page ?? 1,
     size: raw?.size ?? raw?.list?.length ?? 0,

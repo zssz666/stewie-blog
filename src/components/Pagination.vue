@@ -4,7 +4,6 @@ import { computed } from 'vue'
 const props = defineProps<{
   page: number
   pages: number
-  total: number
   hrefForPage?: (page: number) => string
 }>()
 

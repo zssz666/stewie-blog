@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import type { Author, Post, Comment } from '@/types/blog'
+import { POST_TYPE, type Author, type Post, type Comment } from '@/types/blog'
 import { getPostBySlug, incrementViews } from '@/api/post'
 import { getAuthor } from '@/api/author'
 import { resolveAsset } from '@/api/request'
@@ -13,14 +13,16 @@ import {
 } from '@/api/interaction'
 import { useUiStore } from '@/stores/ui'
 import { useSeo } from '@/composables/useSeo'
-import { enhanceCodeBlocks, escapeCodeBlockContent } from '@/utils/article'
+import { CONTAINER_QUERY_EXPERIMENT, enhanceCodeBlocks, escapeCodeBlockContent } from '@/utils/article'
 import PopularPosts from '@/components/PopularPosts.vue'
+import ContainerQueryDemo from '@/components/ContainerQueryDemo.vue'
 
 const route = useRoute()
 const uiStore = useUiStore()
 const slug = computed(() => String(route.params.slug ?? ''))
 
 const post = ref<Post | null>(null)
+const demoTarget = shallowRef<HTMLElement | null>(null)
 const loading = ref(true)
 /* 渲染前对代码块内容转义：代码里粘贴的 <script>/<div> 等标签不会被解析成真实 DOM */
 const renderedContent = computed(() => escapeCodeBlockContent(post.value?.content ?? ''))
@@ -173,8 +175,10 @@ const likeCount = ref(0)
 
 async function loadLikeStatus() {
   if (!post.value) return
+  const postId = post.value.id
   try {
-    const res = await getLikeStatus(post.value.id)
+    const res = await getLikeStatus(postId)
+    if (post.value?.id !== postId) return
     liked.value = res.liked
     likeCount.value = res.likes
   } catch (e) {
@@ -209,11 +213,13 @@ const commentCount = computed(() => {
 
 async function loadComments() {
   if (!post.value) return
+  const postId = post.value.id
   try {
-    comments.value = await getComments(post.value.id)
+    const result = await getComments(postId)
+    if (post.value?.id === postId) comments.value = result
   } catch (e) {
     console.error('获取评论失败:', e)
-    comments.value = []
+    if (post.value?.id === postId) comments.value = []
   }
 }
 
@@ -275,11 +281,36 @@ function handleScroll() {
   updateParallax()
 }
 
+function scrollToDemo() {
+  if (route.hash === '#container-query-demo') {
+    demoTarget.value?.firstElementChild?.scrollIntoView({ block: 'start' })
+  }
+}
+
+function mountDemo() {
+  if (post.value?.slug !== CONTAINER_QUERY_EXPERIMENT.slug || !articleRef.value) return
+  const headings = articleRef.value.querySelectorAll('.article-content h2')
+  const heading = Array.from(headings).find((item) => item.textContent?.trim() === CONTAINER_QUERY_EXPERIMENT.heading)
+  if (!heading) {
+    console.warn('容器查询试玩未能挂载：文章小节标题已变更。')
+    return
+  }
+  const target = document.createElement('div')
+  heading.after(target)
+  demoTarget.value = target
+  void nextTick(scrollToDemo)
+}
+
+let postRequest = 0
+
 async function loadPost() {
+  const request = ++postRequest
   loading.value = true
+  demoTarget.value = null
   post.value = null
   try {
     const data = await getPostBySlug(slug.value)
+    if (request !== postRequest) return
     post.value = data
     liked.value = false
     likeCount.value = data.likes ?? 0
@@ -295,22 +326,26 @@ async function loadPost() {
     commentNotice.value = ''
     // 并行加载点赞状态与评论树
     await Promise.all([loadLikeStatus(), loadComments()])
+    if (request !== postRequest) return
     uiStore.setPostTitle(data.title) // 供导航栏吸顶显示
     // 先结束 loading，确保 .post__main（含 v-html 正文与 articleRef）已挂载，
     // 再在 nextTick 中增强代码块：否则 articleRef 为 null，macOS 装饰不会生成
     loading.value = false
     nextTick(() => {
+      if (request !== postRequest) return
       buildToc()
       if (articleRef.value) enhanceCodeBlocks(articleRef.value)
+      mountDemo()
       setupTocObserver()
       handleScroll()
     })
   } catch (e) {
+    if (request !== postRequest) return
     post.value = null
     uiStore.clearPostTitle()
     console.error('获取文章失败:', e)
   } finally {
-    loading.value = false
+    if (request === postRequest) loading.value = false
   }
 }
 
@@ -326,8 +361,10 @@ onMounted(() => {
 watch(slug, () => {
   loadPost()
 })
+watch(() => route.hash, () => void nextTick(scrollToDemo))
 
 onBeforeUnmount(() => {
+  postRequest++
   window.removeEventListener('scroll', handleScroll)
   tocObserver?.disconnect()
   uiStore.clearPostTitle()
@@ -358,16 +395,16 @@ onBeforeUnmount(() => {
       <div class="post__banner-overlay" :class="{ 'post__banner-overlay--plain': !post?.cover }" />
       
       <div class="container post__banner-inner" v-reveal>
-        <RouterLink to="/articles" class="post__back">
+        <RouterLink :to="{ path: '/articles', query: { postType: post?.postType } }" class="post__back">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </svg>
-          返回文章列表
+          {{ post?.postType === POST_TYPE.note ? '返回随手记' : '返回文章列表' }}
         </RouterLink>
         <p v-if="loading" class="post__loading-inline">加载中…</p>
         <template v-else-if="post">
-          <span class="post__tag">{{ post?.tag }}</span>
+          <span v-if="post.tag" class="post__tag">{{ post.tag }}</span>
           <h1 class="post__title">{{ post?.title }}</h1>
           <div class="post__meta">
             <span class="post__author">
@@ -426,27 +463,15 @@ onBeforeUnmount(() => {
     <!-- 正文 + 侧边栏 -->
     <div class="container post__layout" v-if="post && !loading">
       <div ref="articleRef" class="post__main">
-        <!-- 摘要框 -->
-        <div class="post__summary" v-reveal>
-          <svg class="post__summary-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="9" y1="13" x2="15" y2="13" />
-            <line x1="9" y1="17" x2="13" y2="17" />
-          </svg>
-          <div class="post__summary-body">
-            <p>{{ post?.excerpt }}</p>
-            <span class="post__summary-ai">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              摘要由 AI 生成
-            </span>
-          </div>
-        </div>
+        <details v-if="post.excerpt" class="post__summary">
+          <summary>AI 生成的摘要</summary>
+          <p>{{ post.excerpt }}</p>
+        </details>
 
         <div class="article-content" v-html="renderedContent" />
+        <Teleport v-if="demoTarget" :to="demoTarget">
+          <ContainerQueryDemo />
+        </Teleport>
 
         <!-- 底部互动 -->
         <div class="post__actions" v-reveal>
@@ -847,60 +872,14 @@ onBeforeUnmount(() => {
 
 /* ── 摘要框 ── */
 .post__summary {
-  position: relative;
-  display: flex;
-  gap: 14px;
-  margin-bottom: 36px;
-  padding: 22px 24px;
-  background: linear-gradient(135deg, var(--color-primary-softer), transparent);
+  margin-bottom: 26px;
+  padding: 4px 14px;
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
-  border-radius: var(--radius-md);
-}
-
-.post__summary-icon {
-  flex-shrink: 0;
-  color: var(--color-primary);
-  opacity: 0.7;
-  margin-top: 2px;
-}
-
-.post__summary-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  flex: 1;
-}
-
-.post__summary p {
-  font-size: 15px;
-  line-height: 1.8;
+  border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  font-style: italic;
 }
-
-/* ── AI 摘要标记 ── */
-.post__summary-ai {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 12px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  font-style: normal;
-  color: var(--color-accent, #6366f1);
-  background: color-mix(in srgb, var(--color-accent, #6366f1) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-accent, #6366f1) 22%, transparent);
-  width: fit-content;
-}
-
-.post__summary-ai svg {
-  opacity: 0.85;
-}
+.post__summary summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-size: 14px; }
+.post__summary p { margin: 2px 0 12px; font-size: 15px; line-height: 1.8; }
 
 /* ── TOC ── */
 .post__toc {
@@ -1338,9 +1317,6 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 
-  .post__summary {
-    padding: 18px 20px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

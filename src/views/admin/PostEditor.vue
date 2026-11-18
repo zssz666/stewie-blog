@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { Category, PostInput } from '@/types/blog'
+import { POST_TYPE, POST_TYPE_LABELS, type Category, type PostInput, type PostType } from '@/types/blog'
 import {
   buildBlock,
   buildImageBlock,
@@ -34,6 +34,7 @@ const excerpt = ref('')
 const content = ref('')
 const cover = ref('')
 const categoryId = ref<number | null>(null)
+const postType = ref<PostType>(POST_TYPE.article)
 const tagsInput = ref('')
 const status = ref(1)
 const publishDate = ref('')
@@ -200,6 +201,7 @@ onMounted(async () => {
       // 后端 PostVO 不带 categoryId，这里用分类名反查
       const cat = categories.value.find((c) => c.name === p.category)
       categoryId.value = cat ? cat.id : null
+      postType.value = p.postType
       tagsInput.value = (p.tags || []).join(', ')
       status.value = p.status ?? 1
       publishDate.value = p.date || today()
@@ -279,6 +281,7 @@ async function save() {
     content: content.value.trim(),
     cover: cover.value || undefined,
     categoryId: categoryId.value,
+    postType: postType.value,
     tags: tagsInput.value
       .split(',')
       .map((t) => t.trim())
@@ -455,6 +458,13 @@ async function save() {
           <div class="admin-panel__head"><span class="admin-panel__title">发布设置</span></div>
           <div class="admin-panel__body">
             <div class="field">
+              <label class="field__label" for="post-type">内容类型</label>
+              <select id="post-type" v-model="postType" class="field__control">
+                <option :value="POST_TYPE.article">{{ POST_TYPE_LABELS[POST_TYPE.article] }}</option>
+                <option :value="POST_TYPE.note">{{ POST_TYPE_LABELS[POST_TYPE.note] }}</option>
+              </select>
+            </div>
+            <div class="field" style="margin-top: 14px">
               <label class="field__label">分类</label>
               <select v-model.number="categoryId" class="field__control">
                 <option :value="null">未分类</option>

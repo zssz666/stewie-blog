@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import type { Post } from '@/types/blog'
+import type { PageResult, Post } from '@/types/blog'
 import { searchPosts } from '@/api/post'
 import { useSeo } from '@/composables/useSeo'
 
@@ -16,67 +16,65 @@ useSeo({
 const route = useRoute()
 const router = useRouter()
 
-const query = ref<string>((route.query.q as string) || '')
-const results = ref<Post[]>([])
-const total = ref(0)
+const keyword = computed(() => typeof route.query.q === 'string' ? route.query.q.trim() : '')
+const query = ref('')
+const result = shallowRef<PageResult<Post>>()
 const page = ref(1)
-const size = ref(10)
-const pages = ref(0)
+const pages = computed(() => {
+  if (!result.value) return 0
+  const { pages, total, size } = result.value
+  return pages ?? Math.max(1, Math.ceil(total / size))
+})
 const loading = ref(false)
-const submitted = ref(false) // 是否已经发起过一次搜索（用于区分初始空态）
+const loadError = ref(false)
 
+let searchId = 0
 async function runSearch() {
-  const q = query.value.trim()
-  if (!q) {
-    results.value = []
-    total.value = 0
-    submitted.value = false
+  const currentSearch = ++searchId
+  const term = keyword.value
+  loadError.value = false
+  if (!term) {
+    result.value = undefined
+    loading.value = false
     return
   }
-  submitted.value = true
   loading.value = true
   try {
-    const res = await searchPosts(q, page.value, size.value)
-    results.value = res.list
-    total.value = res.total
-    pages.value = res.pages ?? Math.max(1, Math.ceil(res.total / res.size))
+    const response = await searchPosts(term, page.value)
+    if (currentSearch === searchId) result.value = response
   } catch (e) {
+    if (currentSearch !== searchId) return
+    result.value = undefined
+    loadError.value = true
     console.error('搜索失败:', e)
-    results.value = []
-    total.value = 0
   } finally {
-    loading.value = false
+    if (currentSearch === searchId) loading.value = false
   }
 }
 
 function submit() {
+  const term = query.value.trim()
+  if (term !== keyword.value) {
+    void router.replace({ name: 'search', query: term ? { q: term } : {} })
+    return
+  }
+  query.value = term
   page.value = 1
-  const q = query.value.trim()
-  // 同步到 URL，便于刷新/分享
-  router.replace({ name: 'search', query: q ? { q } : {} })
-  runSearch()
+  void runSearch()
 }
 
 function goPage(p: number) {
   if (p < 1 || p > pages.value) return
   page.value = p
-  runSearch()
+  void runSearch()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-/* 路由 ?q= 变化时（如从导航栏进入已带关键词）自动搜索 */
-watch(
-  () => route.query.q,
-  (q) => {
-    query.value = (q as string) || ''
-    page.value = 1
-    runSearch()
-  },
-)
-
-onMounted(() => {
-  if (query.value.trim()) runSearch()
-})
+watch(keyword, (term) => {
+  query.value = term
+  page.value = 1
+  void runSearch()
+}, { immediate: true })
 
 /* ── 关键词高亮（先转义后包裹 <mark>，杜绝 XSS） ── */
 function escapeHtml(s: string): string {
@@ -96,8 +94,6 @@ function highlight(text: string, q: string): string {
   const escQ = escapeHtml(kw).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return safe.replace(new RegExp(`(${escQ})`, 'gi'), '<mark>$1</mark>')
 }
-
-const highlightQuery = computed(() => query.value.trim())
 </script>
 
 <template>
@@ -125,25 +121,26 @@ const highlightQuery = computed(() => query.value.trim())
 
     <!-- 加载 -->
     <div v-if="loading" class="search__state">搜索中…</div>
+    <div v-else-if="loadError" class="search__state" role="alert">搜索失败，请重试。</div>
 
     <!-- 未搜索的空态 -->
-    <div v-else-if="!submitted" class="search__state search__state--muted">
+    <div v-else-if="!keyword" class="search__state search__state--muted">
       输入关键词开始搜索 🔍
     </div>
 
     <!-- 无结果 -->
-    <div v-else-if="!results.length" class="search__state search__state--muted">
-      没有找到与「<strong>{{ highlightQuery }}</strong>」相关的文章
+    <div v-else-if="!result?.list.length" class="search__state search__state--muted">
+      没有找到与「<strong>{{ keyword }}</strong>」相关的文章
     </div>
 
     <!-- 结果列表 -->
     <template v-else>
       <p class="search__count">
-        找到 <strong>{{ total }}</strong> 篇与「<strong>{{ highlightQuery }}</strong>」相关的文章
+        找到 <strong>{{ result.total }}</strong> 篇与「<strong>{{ keyword }}</strong>」相关的文章
       </p>
 
       <ul class="search__list">
-        <li v-for="post in results" :key="post.id" class="result" v-reveal>
+        <li v-for="post in result.list" :key="post.id" class="result" v-reveal>
           <RouterLink :to="`/post/${post.slug}`" class="result__link">
             <div
               v-if="post.cover"
@@ -151,8 +148,8 @@ const highlightQuery = computed(() => query.value.trim())
               :style="{ backgroundImage: `url(${post.cover})` }"
             />
             <div class="result__body">
-              <h2 class="result__title" v-html="highlight(post.title, highlightQuery)" />
-              <p class="result__excerpt" v-html="highlight(post.excerpt || '', highlightQuery)" />
+              <h2 class="result__title" v-html="highlight(post.title, keyword)" />
+              <p class="result__excerpt" v-html="highlight(post.excerpt || '', keyword)" />
               <div class="result__meta">
                 <span v-if="post.category" class="result__chip">{{ post.category }}</span>
                 <span class="result__date">{{ post.date }}</span>

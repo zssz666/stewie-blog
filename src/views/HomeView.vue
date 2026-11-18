@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { Post } from '@/types/blog'
+import { POST_TYPE, type Post, type PostType } from '@/types/blog'
 import { getPosts } from '@/api/post'
+import { CONTAINER_QUERY_EXPERIMENT } from '@/utils/article'
 import { useSeo } from '@/composables/useSeo'
 import { useMagnetic } from '@/composables/useMagnetic'
 import PostCard from '@/components/PostCard.vue'
+import JournalEntry from '@/components/JournalEntry.vue'
 import Oscilloscope from '@/components/Oscilloscope.vue'
 import LabStatusCard from '@/components/LabStatusCard.vue'
 import FlowComic from '@/components/FlowComic.vue'
@@ -27,7 +29,12 @@ if (typeof window !== 'undefined') {
 }
 
 /* ── 文章数据 ── */
-const posts = ref<Post[]>([])
+const technicalPosts = ref<Post[]>([])
+const quickNotes = ref<Post[]>([])
+const topicOptions = ref<string[]>([])
+const contentErrors = ref<PostType[]>([])
+const HOME_PREVIEW_SIZE = 4
+const RECENT_TOPIC_SAMPLE_SIZE = 5
 /* 后台文章总数（贴纸展示用，非当前列表长度） */
 const postsTotal = ref(0)
 const postsLoading = ref(true)
@@ -56,24 +63,31 @@ onBeforeUnmount(() => {
 })
 
 onMounted(async () => {
-  try {
-    // 首页展示最近五篇，实验抽选复用同一批真实记录。
-    const page = await getPosts({ size: 5 })
-    posts.value = Array.isArray(page.list) ? page.list : []
-    // 后台总条数；若后端未返回 total 则退回列表长度兑底
-    postsTotal.value = page.total || posts.value.length
-  } catch (e) {
-    postsError.value = true
-    console.error('获取文章失败:', e)
-  } finally {
-    postsLoading.value = false
-  }
-})
+  const [recent, technical, notes] = await Promise.allSettled([
+    getPosts({ size: RECENT_TOPIC_SAMPLE_SIZE }),
+    getPosts({ postType: POST_TYPE.article, size: HOME_PREVIEW_SIZE }),
+    getPosts({ postType: POST_TYPE.note, size: HOME_PREVIEW_SIZE }),
+  ])
 
-const sortedPosts = computed(() => {
-  // 防御：部署环境若后端版本不一致导致 posts.value 非数组，避免白屏崩溃
-  const list = posts.value ?? []
-  return list.slice().sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+  if (recent.status === 'fulfilled') {
+    postsTotal.value = recent.value.total
+    const tags = recent.value.list.flatMap((post) => post.tags ?? [post.tag])
+    topicOptions.value = [...new Set(tags.filter(Boolean))]
+  } else {
+    postsError.value = true
+    console.error('获取近期文章失败:', recent.reason)
+  }
+  if (technical.status === 'fulfilled') technicalPosts.value = technical.value.list
+  else {
+    contentErrors.value.push(POST_TYPE.article)
+    console.error('获取技术文章失败:', technical.reason)
+  }
+  if (notes.status === 'fulfilled') quickNotes.value = notes.value.list
+  else {
+    contentErrors.value.push(POST_TYPE.note)
+    console.error('获取随手记失败:', notes.reason)
+  }
+  postsLoading.value = false
 })
 
 /* ── 图纸标题（逐字"勾勒 → 上墨"） ── */
@@ -87,12 +101,8 @@ const sheetDate = new Date()
 
 /* ── 按钮磁吸（桌面 hover 设备） ── */
 const magPrimary = useMagnetic(8)
-const magGhost = useMagnetic(6)
 const primaryStyle = computed(() => ({
   transform: `translate(${magPrimary.x.value}px, ${magPrimary.y.value}px)`,
-}))
-const ghostStyle = computed(() => ({
-  transform: `translate(${magGhost.x.value}px, ${magGhost.y.value}px)`,
 }))
 
 /* ── 吉祥物：点击随机换表情 + 形状（情绪池 + 形状池） ── */
@@ -113,10 +123,11 @@ function startExperiment() {
   heroBallRef.value?.setEmotion('30')
 }
 
-function finishExperiment() {
+function finishExperiment(found: boolean) {
   experimentBusy.value = false
+  if (!found) return
   heroBallRef.value?.setEmotion('33')
-  heroBallRef.value?.spin(1)
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) heroBallRef.value?.spin(1)
 }
 
 /* ── 尾声 CTA 小球：点击随机换表情 + 低概率撒花 ── */
@@ -185,40 +196,25 @@ const banter = [
 
         <p class="hero__intro">Stewie 的全栈开发笔记，记录问题的复现、定位与修复。</p>
 
-        <p class="hero__flow" v-reveal="100">
-          <span class="hero__flow-step">假设</span>
-          <span class="hero__flow-arrow" aria-hidden="true">→</span>
-          <span class="hero__flow-step">复现</span>
-          <span class="hero__flow-arrow" aria-hidden="true">→</span>
-          <span class="hero__flow-step hero__flow-step--hot">修复</span>
-          <span class="hero__flow-arrow" aria-hidden="true">→</span>
-          <span class="hero__flow-step">沉淀</span>
-        </p>
-
-        <p class="hero__meta" v-reveal="150">Vue 3 · TypeScript · Spring Boot · Node.js</p>
-
         <div class="hero__actions" v-reveal="200">
           <RouterLink
-            to="/articles"
+            :to="{ path: '/articles', query: { postType: POST_TYPE.article } }"
             class="hero__btn hero__btn--primary"
             :style="primaryStyle"
             @mousemove="magPrimary.onMouseMove"
             @mouseleave="magPrimary.onMouseLeave"
           >
-            翻看登记簿
+            读技术文章
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M5 12h14" />
               <path d="m12 5 7 7-7 7" />
             </svg>
           </RouterLink>
           <RouterLink
-            to="/about"
+            :to="{ path: '/articles', query: { postType: POST_TYPE.note } }"
             class="hero__btn hero__btn--ghost"
-            :style="ghostStyle"
-            @mousemove="magGhost.onMouseMove"
-            @mouseleave="magGhost.onMouseLeave"
           >
-            关于 Stewie
+            翻翻随手记
           </RouterLink>
         </div>
       </div>
@@ -256,14 +252,20 @@ const banter = [
             label="实验室吉祥物：表情小球（安全橙）"
           />
           <!-- 对话气泡：直接附着在按钮上，尾巴自然对准球心 -->
-          <span class="hero__bubble">{{ experimentBusy ? '让我找找下一次实验…' : '调调信号，再抽篇文章？' }}</span>
+          <span class="hero__bubble">{{ experimentBusy ? '让我找找下一次实验…' : '窗口没动，卡片挤坏了？' }}</span>
         </button>
       </div>
 
-      <div class="hero__osc" v-reveal="200">
+      <div class="hero__feature">
+        <p>本期实验 · CSS</p>
+        <h2><RouterLink :to="'/post/' + CONTAINER_QUERY_EXPERIMENT.slug">{{ CONTAINER_QUERY_EXPERIMENT.title }}</RouterLink></h2>
+        <RouterLink class="hero__feature-link" :to="'/post/' + CONTAINER_QUERY_EXPERIMENT.slug + '#container-query-demo'">
+          动手试试 <span aria-hidden="true">↗</span>
+        </RouterLink>
+      </div>
+      <div class="hero__osc">
         <Oscilloscope label="实验信号" :scanning="experimentBusy" />
       </div>
-      <ExperimentPicker :posts="sortedPosts" :loading="postsLoading" :error="postsError" @scan-start="startExperiment" @scan-end="finishExperiment" />
       </div>
 
       <!-- 图纸标题栏 -->
@@ -308,11 +310,10 @@ const banter = [
       <div class="container">
         <div class="posts__head" v-reveal>
           <div class="posts__head-left">
-            <p class="posts__eyebrow">EXPERIMENT LOG</p>
-            <h2 class="posts__title">实验登记簿</h2>
+            <h2 class="posts__title">技术文章</h2>
           </div>
-          <RouterLink to="/articles" class="posts__more link-draw">
-            查看全部
+          <RouterLink :to="{ path: '/articles', query: { postType: POST_TYPE.article } }" class="posts__more link-draw">
+            更多技术文章
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M5 12h14" />
               <path d="m12 5 7 7-7 7" />
@@ -322,17 +323,20 @@ const banter = [
 
         <div class="posts__grid">
           <div
-            v-for="(post, index) in sortedPosts"
+            v-for="(post, index) in technicalPosts"
             :key="post.id"
             class="posts__cell"
             :class="{ 'posts__cell--cover-window': index === 0 && post.cover }"
             v-reveal="index * 70"
           >
-            <PostCard :post="post" :featured="index === 0" :flip="index % 2 === 1" />
+            <PostCard :post="post" :featured="index === 0" :compact="index > 0 || !post.cover" />
           </div>
         </div>
+        <p v-if="postsLoading" class="posts__status" role="status">正在翻找实验记录…</p>
+        <p v-else-if="contentErrors.includes(POST_TYPE.article)" class="posts__status" role="alert">技术文章暂时未能加载。</p>
+        <p v-else-if="!technicalPosts.length" class="posts__status">还没有已发布的技术文章。</p>
 
-        <div class="posts__cta" v-reveal="640">
+        <div class="posts__cta">
           <RouterLink to="/articles" class="btn btn-ghost">
             浏览全部实验
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -343,6 +347,26 @@ const banter = [
         </div>
       </div>
     </section>
+
+    <section class="notes-section" aria-labelledby="home-notes-title">
+      <div class="container">
+        <div class="posts__head">
+          <h2 id="home-notes-title" class="posts__title">随手记</h2>
+          <RouterLink :to="{ path: '/articles', query: { postType: POST_TYPE.note } }" class="posts__more link-draw">
+            更多随手记 <span aria-hidden="true">↗</span>
+          </RouterLink>
+        </div>
+        <p class="posts__status">练习、复盘，还有突然想记一笔的发现。</p>
+        <p v-if="postsLoading" class="posts__status" role="status">正在翻找随手记…</p>
+        <p v-else-if="contentErrors.includes(POST_TYPE.note)" class="posts__status" role="alert">随手记暂时未能加载。</p>
+        <p v-else-if="!quickNotes.length" class="posts__status">还没有已发布的随手记。</p>
+        <JournalEntry v-for="(note, index) in quickNotes" :key="note.id" :post="note" :featured="index === 0" />
+      </div>
+    </section>
+
+    <div class="container home-draw">
+      <ExperimentPicker :topics="topicOptions" @scan-start="startExperiment" @scan-end="finishExperiment" />
+    </div>
 
     <!-- ═══════════ 研究员档案（RPG 状态卡） ═══════════ -->
     <section class="section-block">
@@ -441,6 +465,14 @@ const banter = [
   gap: clamp(28px, 4vw, 64px);
   overflow: hidden;
   padding: 112px max(32px, calc((100% - var(--max-width)) / 2 + 24px)) 124px;
+}
+
+.hero.grid-paper {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--grid-line-strong) 68%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--grid-line-strong) 68%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--grid-line) 58%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--grid-line) 58%, transparent) 1px, transparent 1px);
 }
 
 .hero__starfield { display: none; }
@@ -605,6 +637,7 @@ html.dark .hero__starfield {
   color: var(--color-text-secondary);
   font-size: 18px;
   line-height: 1.8;
+  text-wrap: pretty;
 }
 
 .hero__workbench {
@@ -615,6 +648,17 @@ html.dark .hero__starfield {
   gap: 14px;
   min-width: 0;
 }
+
+.hero__feature {
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-inline-start: 3px solid var(--color-primary);
+  background: var(--color-surface);
+}
+.hero__feature p { font: 13px var(--font-mono); color: var(--color-text-secondary); }
+.hero__feature h2 { margin-block: 7px; font: 700 23px/1.35 var(--font-display); color: var(--color-heading); }
+.hero__feature h2 a { color: inherit; }
+.hero__feature-link { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--color-accent); text-decoration: underline; text-underline-offset: 4px; }
 
 /* ── 眉标 ── */
 .hero__eyebrow {
@@ -693,47 +737,6 @@ html.dark .hero__starfield {
 .hero-title__ch:is(:last-child) {
   color: var(--color-primary);
   -webkit-text-stroke-color: transparent;
-}
-
-/* ── 方法论流程：假设 → 复现 → 修复 → 沉淀 ── */
-.hero__flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 30px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  letter-spacing: 0.06em;
-}
-
-.hero__flow-step {
-  padding: 4px 12px;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-
-/* 「修复」是每篇实验的落点：安全橙点亮 */
-.hero__flow-step--hot {
-  color: var(--color-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-  background: var(--color-primary-soft);
-  font-weight: 600;
-}
-
-.hero__flow-arrow {
-  color: var(--color-text-tertiary);
-}
-
-/* ── 技术栈元信息 ── */
-.hero__meta {
-  margin-top: 18px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 0.05em;
-  color: var(--color-text-secondary);
 }
 
 /* ── 按钮 ── */
@@ -992,6 +995,12 @@ html.dark .hero__sticker {
   position: relative;
 }
 
+.notes-section { padding-block: clamp(30px, 6vw, 72px); background: var(--color-bg-soft); }
+.notes-section .posts__head { margin-bottom: 12px; }
+.posts__status { color: var(--color-text-secondary); line-height: 1.65; }
+.home-draw { padding-block: clamp(28px, 5vw, 64px); }
+.home-draw :deep(.experiment-picker) { border: 1px solid var(--color-border); }
+
 .posts__head {
   display: flex;
   align-items: flex-end;
@@ -1005,14 +1014,6 @@ html.dark .hero__sticker {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.posts__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  color: var(--color-primary);
 }
 
 .posts__title {
@@ -1462,8 +1463,6 @@ html.dark .hero__sticker {
   .hero-title { font-size: clamp(2.35rem, 4.8vw, 3.4rem); }
   .hero__btn { padding-inline: 20px; }
   .hero__actions { gap: 10px; }
-  .hero__flow { gap: 6px; }
-  .hero__flow-step { padding-inline: 8px; }
 }
 
 @media (max-width: 768px) {
@@ -1487,9 +1486,6 @@ html.dark .hero__sticker {
   .hero-title { font-size: clamp(1.9rem, 8.7vw, 2.9rem); }
   .hero__eyebrow { margin-bottom: 18px; }
   .hero__intro { font-size: 15px; margin-top: 18px; }
-  .hero__flow { margin-top: 22px; gap: 6px; font-size: 12px; }
-  .hero__flow-step { padding: 4px 8px; }
-  .hero__meta { font-family: var(--font-sans); font-size: 13px; letter-spacing: 0; }
   .hero__actions { margin-top: 24px; }
   .hero__btn { padding: 12px 18px; font-size: 13px; min-height: 44px; }
   .hero__sticker {

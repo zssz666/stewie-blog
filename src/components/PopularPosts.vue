@@ -43,7 +43,7 @@ function formatDate(date: string) {
           </span>
           <div class="popular__info">
             <p class="popular__name">{{ post.title }}</p>
-            <span class="popular__date">{{ formatDate(post.date) }}</span>
+            <span class="popular__meta">{{ formatDate(post.date) }} · {{ post.views.toLocaleString('zh-CN') }} 次浏览</span>
           </div>
         </RouterLink>
       </li>
@@ -154,7 +154,7 @@ function formatDate(date: string) {
   transition: color var(--transition-fast);
 }
 
-.popular__date {
+.popular__meta {
   margin-top: 4px;
   font-size: 12px;
   color: var(--color-text-tertiary);

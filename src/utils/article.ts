@@ -1,6 +1,12 @@
 // 文章正文增强：把 <pre> 包成 macOS 风格代码块（带红绿灯与复制按钮）。
 // 文章页 PostView 与后台编辑器预览共用，保证「写」与「展示」完全一致。
 
+export const CONTAINER_QUERY_EXPERIMENT = {
+  slug: 'daily-quiz-2026-11-09',
+  title: '同一张卡片，放到侧栏怎么就挤坏了？',
+  heading: '组件自己有多宽就自己决定长什么样',
+} as const
+
 /**
  * 代码块内容转义：把 <pre><code> 内部未转义的标签字符转为实体。
  *

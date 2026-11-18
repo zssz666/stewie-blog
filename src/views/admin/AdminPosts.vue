@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { Post } from '@/types/blog'
+import { POST_TYPE_LABELS, type Post } from '@/types/blog'
 import { deletePost, listAdminPosts } from '@/api/admin'
 import { resolveAsset } from '@/api/request'
 
@@ -122,7 +122,7 @@ onMounted(load)
                   <span v-else class="admin-cell-title__cover admin-cell-title__cover--ph" />
                   <div class="admin-cell-title__meta">
                     <RouterLink :to="`/admin/posts/${p.id}/edit`" class="admin-cell-title__name">{{ p.title }}</RouterLink>
-                    <span class="admin-cell-title__slug">/{{ p.slug }}</span>
+                    <span class="admin-cell-title__slug">{{ POST_TYPE_LABELS[p.postType] }} · /{{ p.slug }}</span>
                   </div>
                 </div>
               </td>

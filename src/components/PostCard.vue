@@ -4,10 +4,7 @@ import { RouterLink } from 'vue-router'
 import type { Post } from '@/types/blog'
 import { resolveAsset } from '@/api/request'
 
-const props = withDefaults(
-  defineProps<{ post: Post; featured?: boolean; flip?: boolean }>(),
-  { featured: false, flip: false },
-)
+const { post, featured, compact } = defineProps<{ post: Post; featured?: boolean; compact?: boolean }>()
 
 /* 试剂瓶标签：各技术的品牌色（无封面时的草图区配色） */
 const tagColors: Record<string, { from: string; to: string; icon: string }> = {
@@ -18,41 +15,42 @@ const tagColors: Record<string, { from: string; to: string; icon: string }> = {
   Pinia: { from: '#ffd859', to: '#e0a213', icon: 'P' },
 }
 
-const coverStyle = computed(() => {
-  const colors = tagColors[props.post.tag] ?? { from: '#33687f', to: '#1d2a32', icon: '•' }
-  return {
-    background: `linear-gradient(135deg, ${colors.from}, ${colors.to})`,
-  }
-})
-
-const hasCover = computed(() => !!props.post.cover)
-const coverSrc = computed(() => resolveAsset(props.post.cover))
-
-const tagIcon = computed(() => tagColors[props.post.tag]?.icon ?? '•')
+const defaultTagColors = { from: '#33687f', to: '#1d2a32', icon: '•' }
+const coverColors = computed(() => tagColors[post.tag] ?? defaultTagColors)
+const coverStyle = computed(() => ({
+  background: `linear-gradient(135deg, ${coverColors.value.from}, ${coverColors.value.to})`,
+}))
+const coverSrc = computed(() => resolveAsset(post.cover))
 
 /* 实验编号：数据库文章序号，编码真实信息 */
-const expNo = computed(() => `EXP-${String(props.post.id).padStart(3, '0')}`)
+const expNo = computed(() => `EXP-${String(post.id).padStart(3, '0')}`)
 
 /* 登记日期：登记簿式短横线格式 */
-const filedDate = computed(() => (props.post.date ?? '').slice(0, 10))
+const filedDate = computed(() => (post.date ?? '').slice(0, 10))
 
 const formattedViews = computed(() => {
-  const v = props.post.views
+  const v = post.views
   if (v >= 1000) return `${(v / 1000).toFixed(1)}k`
   return String(v)
 })
 </script>
 
 <template>
+  <RouterLink v-if="compact" :to="'/post/' + post.slug" class="post-row">
+    <time :datetime="filedDate">{{ filedDate }}</time>
+    <h3>{{ post.title }}</h3>
+    <span aria-hidden="true">↗</span>
+  </RouterLink>
   <RouterLink
+    v-else
     :to="`/post/${post.slug}`"
     class="exp-card"
-    :class="{ 'exp-card--featured': featured, 'exp-card--reverse': flip }"
+    :class="{ 'exp-card--featured': featured }"
   >
     <!-- 封面 / 草图区 -->
     <div class="exp-card__cover" :style="coverStyle">
       <img
-        v-if="hasCover"
+        v-if="post.cover"
         :src="coverSrc"
         :alt="post.title"
         class="exp-card__cover-img"
@@ -60,10 +58,10 @@ const formattedViews = computed(() => {
       />
       <template v-else>
         <span class="exp-card__sketch-mark" aria-hidden="true" />
-        <span class="exp-card__cover-icon">{{ tagIcon }}</span>
+        <span class="exp-card__cover-icon">{{ coverColors.icon }}</span>
         <div class="exp-card__cover-pattern" />
       </template>
-      <span class="exp-card__tag">{{ post.tag }}</span>
+      <span v-if="post.tag" class="exp-card__tag">{{ post.tag }}</span>
     </div>
 
     <!-- 登记内容 -->
@@ -112,6 +110,25 @@ const formattedViews = computed(() => {
 </template>
 
 <style scoped>
+.post-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px 20px;
+  min-height: 48px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-heading);
+}
+.post-row time { color: var(--color-text-secondary); font: 13px var(--font-mono); }
+.post-row h3 { margin: 0; font-size: 16px; line-height: 1.5; }
+.post-row > span { color: var(--color-primary); }
+.post-row:is(:hover, :focus-visible) h3 { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 640px) {
+  .post-row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .post-row time { grid-column: 1 / -1; }
+}
+
 /* ============================================================
    实验登记条目：登记脊（编号+状态灯）+ 内容 + 草图区
    ============================================================ */
@@ -153,6 +170,7 @@ const formattedViews = computed(() => {
   flex-shrink: 0;
   width: 42%; /* 固定宽度比例 */
   min-height: 220px; /* 最小高度保证展示空间 */
+  border-right: 1px solid var(--color-border);
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -267,20 +285,6 @@ const formattedViews = computed(() => {
   padding: 20px 24px 18px;
   flex: 1;
   min-width: 0;
-}
-
-/* 反向布局：文字在左，图片在右 */
-.exp-card--reverse {
-  flex-direction: row-reverse;
-}
-
-.exp-card--reverse .exp-card__cover {
-  border-left: 1px solid var(--color-border);
-  border-right: none;
-}
-
-.exp-card:not(.exp-card--reverse) .exp-card__cover {
-  border-right: 1px solid var(--color-border);
 }
 
 /* 登记脊：实验编号（轮廓字）+ 归档状态 */
@@ -450,8 +454,7 @@ const formattedViews = computed(() => {
 
 /* 响应式：小屏恢复纵向布局 */
 @media (max-width: 768px) {
-  .exp-card,
-  .exp-card--reverse {
+  .exp-card {
     flex-direction: column;
   }
 
