@@ -361,13 +361,18 @@ const socialIcons: Record<string, string> = {
         <span class="bento__focus-glow" aria-hidden="true" />
       </article>
 
-      <!-- 音乐偏好卡 -->
       <article id="about-music" class="bento bento--music" v-reveal="650">
         <span class="bento__idx" aria-hidden="true">#08</span>
-        <p class="bento__label">音乐偏好</p>
-        <h3 class="bento__music-title">Lo-fi · 纯音乐 · 华语流行</h3>
+        <p class="bento__label">常听的音乐</p>
+        <h3 class="bento__music-title">
+          <a href="https://music.163.com/song?id=1379918404" target="_blank" rel="noopener">time machine (feat. aren park) <span aria-hidden="true">↗</span></a>
+        </h3>
         <div class="bento__eq" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-        <p class="bento__music-sub">戴上耳机，跟实验室一起写码 🎧</p>
+        <p class="bento__music-sub">
+          <a href="https://music.163.com/artist?id=32840926" target="_blank" rel="noopener">mj apanay</a>
+          /
+          <a href="https://music.163.com/artist?id=32840003" target="_blank" rel="noopener">aren park</a>
+        </p>
       </article>
 
       <!-- 实验数据卡 -->
@@ -1227,6 +1232,14 @@ const socialIcons: Record<string, string> = {
   margin: 0;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.bento__music-title a,
+.bento__music-sub a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 3px;
 }
 
 /* ── #09 实验数据卡（深灰） ── */

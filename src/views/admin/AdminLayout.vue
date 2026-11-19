@@ -72,6 +72,9 @@ async function logout() {
           <RouterLink to="/admin/comments" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/comments') }">
             评论审核
           </RouterLink>
+          <RouterLink to="/admin/photos" class="admin__nav" :class="{ 'admin__nav--active': active('/admin/photos') }">
+            照片管理
+          </RouterLink>
         </nav>
 
         <nav class="admin__group">

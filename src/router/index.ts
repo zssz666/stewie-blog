@@ -27,6 +27,11 @@ const router = createRouter({
       component: () => import('../views/AboutView.vue'),
     },
     {
+      path: '/photos/:album?',
+      name: 'photos',
+      component: () => import('../views/PhotosView.vue'),
+    },
+    {
       path: '/search',
       name: 'search',
       component: () => import('../views/SearchView.vue'),
@@ -70,6 +75,11 @@ const router = createRouter({
           path: 'comments',
           name: 'admin-comments',
           component: () => import('../views/admin/AdminComments.vue'),
+        },
+        {
+          path: 'photos',
+          name: 'admin-photos',
+          component: () => import('../views/admin/AdminPhotos.vue'),
         },
         {
           path: 'author',

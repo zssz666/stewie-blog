@@ -61,6 +61,17 @@ export interface UploadResult {
   size?: number
 }
 
+export interface GalleryPhoto {
+  name: string
+  url: string
+}
+
+export interface GalleryAlbum {
+  name: string
+  cover: GalleryPhoto | null
+  photos: GalleryPhoto[]
+}
+
 /* ── 互动模块（阶段 5：点赞 / 评论） ── */
 
 /** 点赞状态（指纹去重） */

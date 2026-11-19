@@ -1,4 +1,4 @@
-import type { Category, PageResult, Post, PostType, Tag } from '@/types/blog'
+import type { Category, GalleryAlbum, PageResult, Post, PostType, Tag } from '@/types/blog'
 import { request } from './request'
 
 /** 文章列表查询参数 */
@@ -67,6 +67,10 @@ export function getCategories(): Promise<Category[]> {
 /** 标签列表 */
 export function getTags(): Promise<Tag[]> {
   return request<Tag[]>('/tags')
+}
+
+export function getGalleryAlbums(): Promise<GalleryAlbum[]> {
+  return request<GalleryAlbum[]>('/photos')
 }
 
 /**

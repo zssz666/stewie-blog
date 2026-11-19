@@ -47,8 +47,9 @@ export function generateExcerpt(title: string, content: string) {
 export interface UploadOptions {
   /** 显式指定媒体类型；不传则由后端按文件真实类型自动判断 */
   type?: 'image' | 'video'
-  /** 传 cover 表示封面图（后端放入 covers/ 目录）；不传按正文媒体处理 */
   scene?: 'cover'
+  /** 指定相册时使用单独的相册上传入口。 */
+  album?: string
   /** 上传进度回调，百分比 0-100 */
   onProgress?: (percent: number) => void
 }
@@ -66,8 +67,10 @@ export function uploadFile(file: File, options: UploadOptions = {}): Promise<Upl
   const qs = new URLSearchParams()
   if (options.type) qs.set('type', options.type)
   if (options.scene) qs.set('scene', options.scene)
+  if (options.album !== undefined) qs.set('album', options.album)
   const query = qs.toString()
-  const url = `${BASE}/admin/upload${query ? `?${query}` : ''}`
+  const endpoint = options.album === undefined ? 'upload' : 'photos'
+  const url = `${BASE}/admin/${endpoint}${query ? `?${query}` : ''}`
 
   return new Promise<UploadResult>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -105,6 +108,18 @@ export function uploadFile(file: File, options: UploadOptions = {}): Promise<Upl
 /** 封面上传（兼容旧调用） */
 export function uploadCover(file: File): Promise<UploadResult> {
   return uploadFile(file, { scene: 'cover' })
+}
+
+export function createGalleryAlbum(album: string) {
+  return request<void>(`/admin/photos/albums?${new URLSearchParams({ album })}`, { method: 'POST' })
+}
+
+export function setGalleryCover(album: string, name: string) {
+  return request<void>(`/admin/photos/albums/cover?${new URLSearchParams({ album, name })}`, { method: 'PUT' })
+}
+
+export function deleteGalleryPhoto(album: string, name: string) {
+  return request<void>(`/admin/photos?${new URLSearchParams({ album, name })}`, { method: 'DELETE' })
 }
 
 /* ── 评论审核 ── */

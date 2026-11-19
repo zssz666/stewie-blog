@@ -33,11 +33,15 @@ const pageTitleMap: Record<string, string> = {
   '/': "Stewie's Lab",
   '/articles': '实验登记簿',
   '/about': '关于 Stewie',
+  '/photos': '照片墙',
   '/search': '搜索实验记录',
 }
 
 const currentTitle = computed(() => {
   if (route.name === 'post') return uiStore.postTitle || '实验记录'
+  if (route.name === 'photos' && typeof route.params.album === 'string' && route.params.album) {
+    return route.params.album
+  }
   const postType = parsePostType(route.query.postType)
   if (route.name === 'articles' && postType !== undefined) return POST_TYPE_LABELS[postType]
   return pageTitleMap[route.path] ?? ''
@@ -52,10 +56,12 @@ const navLinks = [
   { path: '/', label: '首页' },
   { path: '/articles', label: POST_TYPE_LABELS[POST_TYPE.article], postType: POST_TYPE.article },
   { path: '/articles', label: POST_TYPE_LABELS[POST_TYPE.note], postType: POST_TYPE.note },
+  { path: '/photos', label: '照片墙' },
   { path: '/about', label: '关于' },
 ]
 
 function isCurrentNav(link: (typeof navLinks)[number]) {
+  if (link.path === '/photos') return route.name === 'photos'
   return route.path === link.path && parsePostType(route.query.postType) === link.postType
 }
 
