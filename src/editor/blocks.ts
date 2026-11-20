@@ -4,6 +4,7 @@
 // 且与文章页 .article-content 的渲染规则对齐。
 
 export type BlockKind =
+  | 'paragraph'
   | 'h2'
   | 'h3'
   | 'bold'
@@ -27,9 +28,11 @@ const make = (openTag: string, closeTag: string, inner: string): Insertion => ({
   selEnd: openTag.length + inner.length,
 })
 
-/** 根据所选文本生成对应 HTML 片段；空选区时使用占位文字，便于直接覆盖输入。 */
+/** 根据所选文本生成对应 HTML 片段。 */
 export function buildBlock(kind: BlockKind, selected: string): Insertion {
   switch (kind) {
+    case 'paragraph':
+      return make('<p>', '</p>', selected)
     case 'h2':
       return make('<h2>', '</h2>', selected || '主标题')
     case 'h3':
@@ -105,7 +108,7 @@ export function buildVideoBlock(url: string): Insertion {
 }
 
 /** 块级元素：插入时前后补换行，保证 HTML 源码结构清晰、可维护。 */
-export const BLOCK_LEVEL: BlockKind[] = ['h2', 'h3', 'list', 'quote', 'codeBlock', 'hr']
+export const BLOCK_LEVEL: BlockKind[] = ['paragraph', 'h2', 'h3', 'list', 'quote', 'codeBlock', 'hr']
 
 /** 格式提示面板数据：sample 为 HTML 源码，预览与文章页同源渲染。 */
 export interface BlockHint {
@@ -114,6 +117,7 @@ export interface BlockHint {
 }
 
 export const BLOCK_HINTS: BlockHint[] = [
+  { label: '段落', sample: '<p>段落文字</p>' },
   { label: '主标题（H2：目录顶层 + 左侧渐变竖条）', sample: '<h2>遇到的问题</h2>' },
   { label: '子标题（H3：目录二级）', sample: '<h3>排查第一步</h3>' },
   { label: '加粗 / 斜体', sample: '<strong>重要结论</strong> 与 <em>轻读强调</em>' },

@@ -57,7 +57,7 @@ export interface UploadOptions {
 /**
  * 通用媒体上传。
  * <p>用 XMLHttpRequest 而非 fetch：fetch 无法获取上传进度，而正文视频动辄几十 MB，
- * 没有进度条用户会以为卡死。不走 request() 包装是因为 FormData 需要浏览器自己带 boundary。</p>
+ * 没有进度条用户会以为卡死。</p>
  */
 export function uploadFile(file: File, options: UploadOptions = {}): Promise<UploadResult> {
   const token = getToken()
@@ -131,6 +131,16 @@ export function createGalleryAlbum(album: string) {
 
 export function setGalleryCover(album: string, name: string) {
   return request<void>(`/admin/photos/albums/cover?${new URLSearchParams({ album, name })}`, { method: 'PUT' })
+}
+
+export function setGalleryLiveVideo(album: string, name: string, file: File) {
+  const body = new FormData()
+  body.append('file', file)
+  return request<void>(`/admin/photos/live?${new URLSearchParams({ album, name })}`, { method: 'PUT', body })
+}
+
+export function removeGalleryLiveVideo(album: string, name: string) {
+  return request<void>(`/admin/photos/live?${new URLSearchParams({ album, name })}`, { method: 'DELETE' })
 }
 
 export function deleteGalleryPhoto(album: string, name: string) {

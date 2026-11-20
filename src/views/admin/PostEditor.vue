@@ -127,6 +127,16 @@ function insertFormat(kind: BlockKind) {
   insertSnippet(text, selStart, selEnd, BLOCK_LEVEL.includes(kind))
 }
 
+function onContentKeydown(event: KeyboardEvent) {
+  if (event.isComposing || !event.altKey || event.shiftKey) return
+  const paragraphShortcut = event.metaKey
+    ? event.code === 'KeyP'
+    : event.ctrlKey && event.key.toLowerCase() === 'p'
+  if (!paragraphShortcut) return
+  event.preventDefault()
+  if (!event.repeat) insertFormat('paragraph')
+}
+
 // ── 正文媒体：选文件 → 上传到 COS → 自动插入标签 ──
 function pickImage() {
   if (mediaUpload.value) return
@@ -354,6 +364,14 @@ async function save() {
 
               <!-- 工具栏：插入统一格式的 HTML 结构 -->
               <div ref="toolbarRef" class="md-toolbar" role="group" aria-label="正文插入工具">
+                <button
+                  type="button"
+                  class="md-tool"
+                  title="插入段落（Ctrl+Alt+P / ⌘+Option+P）"
+                  aria-label="插入段落"
+                  aria-keyshortcuts="Control+Alt+P Meta+Alt+P"
+                  @click="insertFormat('paragraph')"
+                >P</button>
                 <button type="button" class="md-tool" title="加粗" @click="insertFormat('bold')"><b>B</b></button>
                 <button type="button" class="md-tool" title="斜体" @click="insertFormat('italic')"><i>I</i></button>
                 <span class="md-tool__sep" />
@@ -407,6 +425,7 @@ async function save() {
                   placeholder="在此用 HTML 撰写正文…&#10;&#10;<h2>主标题</h2>&#10;<p>段落文字</p>&#10;<ul><li><strong>要点</strong>说明</li></ul>&#10;&#10;图片/视频点工具栏 🖼️ 🎬 选文件即上传并插入"
                   aria-label="文章 HTML 源码"
                   @scroll="onSourceScroll"
+                  @keydown="onContentKeydown"
                   @click="followCursor"
                   @keyup="followCursor"
                   spellcheck="false"

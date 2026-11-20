@@ -64,6 +64,7 @@ export interface UploadResult {
 export interface GalleryPhoto {
   name: string
   url: string
+  liveVideoUrl?: string | null
 }
 
 export interface GalleryAlbum {

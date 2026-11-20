@@ -32,9 +32,9 @@ export function resolveAsset(url?: string): string {
 
 export async function request<T>(url: string, options?: RequestInit): Promise<T> {
   // 合并默认头与调用方传入的头，并自动携带 Bearer token
-  const headers = new Headers({ 'Content-Type': 'application/json' })
-  if (options?.headers) {
-    new Headers(options.headers).forEach((value, key) => headers.set(key, value))
+  const headers = new Headers(options?.headers)
+  if (!headers.has('Content-Type') && !(options?.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
   }
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)

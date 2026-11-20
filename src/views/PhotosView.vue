@@ -18,7 +18,10 @@ const unlockedAlbum = shallowRef<GalleryAlbum | null>(null)
 const albumPassword = shallowRef('')
 const unlockError = shallowRef('')
 const unlocking = shallowRef(false)
+const hoveredLivePhoto = shallowRef<GalleryPhoto>()
+const hoverPlaying = shallowRef(false)
 const previewPhoto = shallowRef<GalleryPhoto>()
+const previewPlaybackError = shallowRef(false)
 const previewDialog = useTemplateRef<HTMLDialogElement>('previewDialog')
 const loading = shallowRef(true)
 const loadError = shallowRef(false)
@@ -69,6 +72,7 @@ function openAlbum(name: string) {
 
 function clearAlbumAccess() {
   clearTimeout(unlockTimer)
+  stopLiveHover()
   unlockedAlbum.value = null
   previewDialog.value?.close()
   previewPhoto.value = undefined
@@ -147,14 +151,27 @@ function enterAlbum(page: Element) {
   })
 }
 
+function startLiveHover(photo: GalleryPhoto, event: PointerEvent) {
+  if (event.pointerType === 'mouse' && photo.liveVideoUrl && !previewDialog.value?.open) {
+    hoveredLivePhoto.value = photo
+  }
+}
+
+function stopLiveHover() {
+  hoveredLivePhoto.value = undefined
+  hoverPlaying.value = false
+}
+
 function openPhoto(photo: GalleryPhoto) {
+  stopLiveHover()
+  previewPlaybackError.value = false
   previewPhoto.value = photo
   previewDialog.value?.showModal()
 }
 
 function measurePhoto(event: Event) {
   const image = event.currentTarget as HTMLImageElement
-  image.style.setProperty('--photo-wall-image-ratio', String(image.naturalWidth / image.naturalHeight))
+  image.parentElement?.style.setProperty('--photo-wall-image-ratio', String(image.naturalWidth / image.naturalHeight))
 }
 
 watch(albumName, (name) => {
@@ -231,11 +248,27 @@ onBeforeUnmount(() => {
               :key="photo.name"
               type="button"
               class="photo-wall__tile"
-              :aria-label="`查看大图：${photo.name}`"
+              :aria-label="`${photo.liveVideoUrl ? '观看实况' : '查看大图'}：${photo.name}`"
               aria-haspopup="dialog"
+              @pointerenter="startLiveHover(photo, $event)"
+              @pointerleave="stopLiveHover"
               @click="openPhoto(photo)"
             >
               <img class="photo-wall__image" :src="photo.url" alt="" loading="lazy" decoding="async" @load="measurePhoto" />
+              <video
+                v-if="photo.liveVideoUrl && hoveredLivePhoto === photo"
+                class="photo-wall__live-video"
+                :class="{ 'photo-wall__live-video--playing': hoverPlaying }"
+                :src="photo.liveVideoUrl"
+                autoplay
+                muted
+                playsinline
+                aria-hidden="true"
+                @playing="hoverPlaying = true"
+                @ended="stopLiveHover"
+                @error="stopLiveHover"
+              />
+              <span v-if="photo.liveVideoUrl" class="photo-wall__live-mark" aria-hidden="true">LIVE</span>
             </button>
           </div>
         </div>
@@ -246,8 +279,23 @@ onBeforeUnmount(() => {
       class="photo-wall__preview"
       aria-label="照片预览"
       @click.self="previewDialog?.close()"
+      @close="previewPhoto = undefined"
     >
-      <img v-if="previewPhoto" :src="previewPhoto.url" :alt="previewPhoto.name" />
+      <video
+        v-if="previewPhoto?.liveVideoUrl && !previewPlaybackError"
+        :src="previewPhoto.liveVideoUrl"
+        :poster="previewPhoto.url"
+        :aria-label="`实况：${previewPhoto.name}`"
+        autoplay
+        muted
+        playsinline
+        controls
+        @error="previewPlaybackError = true"
+      />
+      <img v-else-if="previewPhoto" :src="previewPhoto.url" :alt="previewPhoto.name" />
+      <p v-if="previewPhoto && previewPlaybackError" class="photo-wall__preview-error" role="status">
+        无法播放实况视频。
+      </p>
       <button type="button" class="photo-wall__preview-close" aria-label="关闭照片" @click="previewDialog?.close()">
         <span aria-hidden="true">×</span>
       </button>
@@ -412,7 +460,8 @@ onBeforeUnmount(() => {
   outline-offset: 2px;
 }
 
-.photo-wall__image {
+.photo-wall__image,
+.photo-wall__live-video {
   --photo-wall-reveal: 0;
   --height-fitted-width: calc(100cqh * var(--photo-wall-image-ratio));
   position: absolute;
@@ -425,6 +474,31 @@ onBeforeUnmount(() => {
   max-width: none;
   height: auto;
   transform: translate(-50%, -50%);
+}
+
+.photo-wall__live-video {
+  aspect-ratio: var(--photo-wall-image-ratio);
+  object-fit: cover;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease-out, --photo-wall-reveal var(--photo-resize);
+}
+
+.photo-wall__live-video--playing {
+  opacity: 1;
+}
+
+.photo-wall__live-mark {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  padding: 3px 5px;
+  border-radius: var(--radius-sm);
+  background: rgb(14 20 25 / 80%);
+  color: #fff;
+  font: 700 0.625rem/1.1 var(--font-mono);
+  letter-spacing: 0.06em;
+  pointer-events: none;
 }
 
 :global(html:has(.photo-wall__preview[open])) {
@@ -451,10 +525,17 @@ onBeforeUnmount(() => {
   background: #0e1419;
 }
 
-.photo-wall__preview img {
+.photo-wall__preview :is(img, video) {
+  max-width: 100%;
   max-height: 100%;
   border-radius: var(--radius-sm);
   object-fit: contain;
+}
+
+.photo-wall__preview-error {
+  position: absolute;
+  bottom: 20px;
+  color: #fff;
 }
 
 .photo-wall__preview-close {
@@ -476,12 +557,12 @@ onBeforeUnmount(() => {
   background: rgb(255 255 255 / 18%);
 }
 
-.photo-wall__tile:focus-visible .photo-wall__image {
+.photo-wall__tile:focus-visible :is(.photo-wall__image, .photo-wall__live-video) {
   --photo-wall-reveal: 1;
 }
 
 @media (hover: hover) {
-  .photo-wall__tile:hover .photo-wall__image {
+  .photo-wall__tile:hover :is(.photo-wall__image, .photo-wall__live-video) {
     --photo-wall-reveal: 1;
   }
 }

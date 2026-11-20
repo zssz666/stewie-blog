@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
-import { createGalleryAlbum, deleteGalleryPhoto, getAdminGalleryAlbums, removeGalleryPassword, setGalleryCover, setGalleryPassword, uploadFile } from '@/api/admin'
+import {
+  createGalleryAlbum,
+  deleteGalleryPhoto,
+  getAdminGalleryAlbums,
+  removeGalleryLiveVideo,
+  removeGalleryPassword,
+  setGalleryCover,
+  setGalleryLiveVideo,
+  setGalleryPassword,
+  uploadFile,
+} from '@/api/admin'
 import type { GalleryAlbum } from '@/types/blog'
 
-const MAX_PHOTO_BYTES = 10 * 1024 * 1024
+const MAX_MEDIA_BYTES = 10 * 1024 * 1024
 const CONCURRENT_PHOTO_UPLOADS = 3
 
 const albums = shallowRef<GalleryAlbum[]>([])
@@ -11,6 +21,8 @@ const selectedName = shallowRef('')
 const newAlbumName = shallowRef('')
 const albumPassword = shallowRef('')
 const photoInput = useTemplateRef<HTMLInputElement>('photoInput')
+const liveVideoInput = useTemplateRef<HTMLInputElement>('liveVideoInput')
+let liveVideoTarget: { album: string; name: string } | undefined
 const loading = shallowRef(true)
 const busy = shallowRef(false)
 const uploadPercent = shallowRef<number | null>(null)
@@ -67,9 +79,9 @@ async function upload() {
   if (!input?.files?.length || !album || busy.value || loading.value) return
 
   const files = Array.from(input.files)
-  const uploadable = files.filter((file) => file.size <= MAX_PHOTO_BYTES)
+  const uploadable = files.filter((file) => file.size <= MAX_MEDIA_BYTES)
   const failures = files
-    .filter((file) => file.size > MAX_PHOTO_BYTES)
+    .filter((file) => file.size > MAX_MEDIA_BYTES)
     .map((file) => `${file.name} 超过 10 MB。`)
   const albumName = album.name
   let combinedProgress = 0
@@ -119,6 +131,35 @@ async function upload() {
 function chooseCover(name: string) {
   const album = selectedAlbum.value
   if (album) void save(() => setGalleryCover(album.name, name), '相册封面已更新。')
+}
+
+function chooseLiveVideo(name: string) {
+  const album = selectedAlbum.value
+  if (!album || loading.value || busy.value) return
+  liveVideoTarget = { album: album.name, name }
+  liveVideoInput.value?.click()
+}
+
+function uploadLiveVideo() {
+  const input = liveVideoInput.value
+  const file = input?.files?.[0]
+  const target = liveVideoTarget
+  liveVideoTarget = undefined
+  if (!input || !file || !target) return
+  input.value = ''
+  if (file.size > MAX_MEDIA_BYTES) {
+    notice.value = ''
+    error.value = '实况视频不能超过 10 MB。'
+    return
+  }
+  void save(() => setGalleryLiveVideo(target.album, target.name, file), '实况视频已保存。')
+}
+
+function removeLiveVideo(name: string) {
+  const album = selectedAlbum.value
+  if (!album || loading.value || busy.value) return
+  if (!window.confirm('确定移除实况视频？封面照片会保留。')) return
+  void save(() => removeGalleryLiveVideo(album.name, name), '实况视频已移除。')
 }
 
 function setPassword() {
@@ -218,6 +259,7 @@ onMounted(load)
       </form>
     </div>
 
+    <input ref="liveVideoInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" hidden @change="uploadLiveVideo" />
     <p v-if="notice" class="admin-photos__notice" role="status">{{ notice }}</p>
     <div v-if="error" class="admin-alert admin-alert--error" role="alert">
       <span class="admin-photos__error-text">{{ error }}</span>
@@ -235,6 +277,20 @@ onMounted(load)
         </div>
         <div class="admin-photos__actions">
           <button class="btn btn--link" type="button" :disabled="busy" @click="chooseCover(photo.name)">设为封面</button>
+          <button
+            class="btn btn--link"
+            type="button"
+            title="选择 10 MB 以内的 MP4 或 MOV"
+            :disabled="busy"
+            @click="chooseLiveVideo(photo.name)"
+          >{{ photo.liveVideoUrl ? '替换实况' : '添加实况' }}</button>
+          <button
+            v-if="photo.liveVideoUrl"
+            class="btn btn--link"
+            type="button"
+            :disabled="busy"
+            @click="removeLiveVideo(photo.name)"
+          >移除实况</button>
           <button
             class="btn btn--link admin-photos__delete"
             type="button"
@@ -332,8 +388,8 @@ onMounted(load)
 
 .admin-photos__actions {
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   padding: 0 12px 6px;
 }
 
