@@ -153,9 +153,4 @@ const router = useRouter()
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 50%, transparent);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .notfound__btn:hover {
-    transform: none;
-  }
-}
 </style>

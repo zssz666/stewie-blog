@@ -122,20 +122,3 @@
     transform 0.4s cubic-bezier(0.21, 0.53, 0.56, 0.8);
 }
 
-/* ============================================================
-   无障碍：尊重「减少动态效果」系统偏好
-   ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-    will-change: auto;
-  }
-
-  .list-enter-active,
-  .list-leave-active,
-  .list-move {
-    transition: none !important;
-  }
-}

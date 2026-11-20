@@ -763,24 +763,4 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .navbar__brand:hover .navbar__logo,
-  .navbar__admin-link:hover {
-    transform: none;
-  }
-
-  .icon-swap-enter-from,
-  .icon-swap-leave-to,
-  .nav-title-enter-from,
-  .nav-title-leave-to {
-    transform: none;
-  }
-
-  .icon-swap-enter-active,
-  .icon-swap-leave-active,
-  .nav-title-enter-active,
-  .nav-title-leave-active {
-    transition: opacity 0.15s var(--ease);
-  }
-}
 </style>

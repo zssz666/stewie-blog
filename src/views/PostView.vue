@@ -1319,14 +1319,4 @@ onBeforeUnmount(() => {
 
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .post__banner-bg {
-    transform: none !important;
-  }
-
-  .like-btn:hover,
-  .comment-link:hover {
-    transform: none;
-  }
-}
 </style>

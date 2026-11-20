@@ -73,6 +73,13 @@ export function getGalleryAlbums(): Promise<GalleryAlbum[]> {
   return request<GalleryAlbum[]>('/photos')
 }
 
+export function unlockGalleryAlbum(album: string, password: string) {
+  return request<{ album: GalleryAlbum; expiresAt: number }>('/photos/unlock', {
+    method: 'POST',
+    body: JSON.stringify({ album, password }),
+  })
+}
+
 /**
  * 全文搜索（MySQL ngram FULLTEXT，后端按相关度排序）
  * 对应后端 GET /api/search?q=&page=&size=

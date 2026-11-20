@@ -330,22 +330,4 @@ onBeforeUnmount(() => observer?.disconnect())
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .gear,
-  .gear:hover,
-  .gear:hover .gear__icon {
-    transform: none;
-  }
-
-  .gear__bar-fill {
-    transition: none;
-  }
-
-  .gear__bar-fill { transform: scaleX(1); }
-  .gear__read > span { transition: none; transform: none !important; }
-
-  .gear--ssr:hover::after {
-    animation: none;
-  }
-}
 </style>

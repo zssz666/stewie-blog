@@ -70,6 +70,7 @@ export interface GalleryAlbum {
   name: string
   cover: GalleryPhoto | null
   photos: GalleryPhoto[]
+  locked?: boolean
 }
 
 /* ── 互动模块（阶段 5：点赞 / 评论） ── */

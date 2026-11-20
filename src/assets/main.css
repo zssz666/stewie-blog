@@ -465,17 +465,3 @@ a:hover {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .fade-page-enter-active,
-  .fade-page-leave-active {
-    transition: none;
-  }
-
-  .card-hover:hover {
-    transform: none;
-  }
-
-  .article-content blockquote:hover {
-    transform: none;
-  }
-}

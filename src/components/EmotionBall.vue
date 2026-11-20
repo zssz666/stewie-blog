@@ -75,7 +75,6 @@ function toneColor(): string {
 let disposed = false
 let inView = true
 let visibilityObserver: IntersectionObserver | undefined
-let motionMedia: MediaQueryList | undefined
 
 function syncActivity() {
   const active = !disposed && inView && !document.hidden
@@ -87,7 +86,6 @@ function syncActivity() {
 function rebuildBall() {
   const EB = window.EmotionBall
   if (disposed || !EB || !rootEl.value) return
-  const reducedMotion = motionMedia?.matches
   engine?.destroy()
   engine = EB.create(rootEl.value, {
     emotion: currentEmotion,
@@ -95,15 +93,12 @@ function rebuildBall() {
     color: toneColor(),
     label: props.label,
     autostart: false,
-    lite: reducedMotion,
-    reducedMotion,
   })
   syncActivity()
 }
 
 onMounted(async () => {
   if (!rootEl.value) return
-  motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
   document.addEventListener('visibilitychange', syncActivity)
   try {
     /* 引擎未就绪（生产部署脚本 404 / 时序异常）时动态按序加载 */
@@ -114,7 +109,6 @@ onMounted(async () => {
   }
   if (disposed || !rootEl.value) return
   rebuildBall()
-  motionMedia.addEventListener('change', rebuildBall)
   if (typeof IntersectionObserver !== 'undefined') {
     visibilityObserver = new IntersectionObserver(entries => {
       inView = entries.some(entry => entry.isIntersecting)
@@ -130,7 +124,6 @@ onBeforeUnmount(() => {
   engine = null
   document.removeEventListener('mousemove', onMouseMove)
   visibilityObserver?.disconnect()
-  motionMedia?.removeEventListener('change', rebuildBall)
   document.removeEventListener('visibilitychange', syncActivity)
 })
 
@@ -193,8 +186,8 @@ watch(
 /* 对外暴露：切表情 / 自旋甩彩带 / 撒花 */
 defineExpose({
   setEmotion: applyEmotion,
-  spin: (turns?: number) => { if (!motionMedia?.matches && inView && !document.hidden) engine?.spin(turns) },
-  burst: (count?: number) => { if (!motionMedia?.matches && inView && !document.hidden) engine?.burst(count) },
+  spin: (turns?: number) => { if (inView && !document.hidden) engine?.spin(turns) },
+  burst: (count?: number) => { if (inView && !document.hidden) engine?.burst(count) },
 })
 </script>
 

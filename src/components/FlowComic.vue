@@ -256,18 +256,4 @@ function poke(i: number) {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .comic,
-  .comic:hover {
-    transform: none;
-  }
-
-  .comic:hover .comic__sfx {
-    animation: none;
-  }
-
-  .comic:hover .emotion-ball {
-    transform: none;
-  }
-}
 </style>

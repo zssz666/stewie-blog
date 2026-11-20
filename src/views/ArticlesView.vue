@@ -458,9 +458,4 @@ onMounted(async () => {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .articles__list {
-    transition: none;
-  }
-}
 </style>

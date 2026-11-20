@@ -378,22 +378,4 @@ const mpDisplay = useCountUp(() => mp, { active, duration: 1100 })
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bar__fill {
-    transition: none;
-  }
-
-  .is-on .bar__fill {
-    width: var(--bar-w);
-  }
-
-  .is-on .bar__fill::after {
-    animation: none;
-    opacity: 0;
-  }
-
-  .status-card:hover .status-card__photo {
-    transform: none;
-  }
-}
 </style>

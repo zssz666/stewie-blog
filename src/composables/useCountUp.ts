@@ -11,13 +11,9 @@ interface CountUpOptions {
 
 const easeOutCubic = (p: number): number => 1 - Math.pow(1 - p, 3)
 
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 /**
  * 数字滚动动画：target 变化或 active 置真后，display 从当前值缓动到目标值。
- * target 支持 ref 或 getter；prefers-reduced-motion 时直接落定，不做动画。
+ * target 支持 ref 或 getter。
  */
 export function useCountUp(
   target: MaybeRefOrGetter<number>,
@@ -61,10 +57,6 @@ export function useCountUp(
       return
     }
     if (active && !active.value) return // 等待激活信号
-    if (prefersReducedMotion()) {
-      display.value = to
-      return
-    }
     animateTo(display.value, to)
   }
 

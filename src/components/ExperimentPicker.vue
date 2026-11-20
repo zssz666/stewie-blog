@@ -111,8 +111,4 @@ async function drawExperiment() {
   .experiment-picker__draw:hover:not(:disabled) { background: var(--color-primary-active); }
   .experiment-result a:hover span { transform: translateX(4px); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .experiment-enter-active, .experiment-leave-active, .experiment-picker__draw, .experiment-result a span { transition: none; }
-  .experiment-enter-from, .experiment-picker__draw:active:not(:disabled) { transform: none; }
-}
 </style>

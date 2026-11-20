@@ -1,24 +1,46 @@
 <script setup lang="ts">
-import { computed, nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue'
 import type { GalleryAlbum } from '@/types/blog'
+
+const DRAG_THRESHOLD = 6
+const DRAG_STEP_RATIO = 0.46
 
 const { albums } = defineProps<{ albums: readonly GalleryAlbum[] }>()
 const selectedName = defineModel<string>({ required: true })
 const emit = defineEmits<{ open: [name: string] }>()
 const viewport = useTemplateRef<HTMLDivElement>('viewport')
+const dragPosition = shallowRef<number | null>(null)
+let pointer: { id: number; x: number; y: number; position: number; step: number } | undefined
+let suppressClick = false
 
 const selectedIndex = computed(() => {
   const index = albums.findIndex((album) => album.name === selectedName.value)
   return Math.max(0, index)
 })
 const selectedAlbum = computed(() => albums[selectedIndex.value])
+const slides = computed(() => albums.map((album, index) => {
+  const distance = index - (dragPosition.value ?? selectedIndex.value)
+  const magnitude = Math.abs(distance)
+  const direction = Math.sign(distance)
+  const tilt = Math.min(magnitude, 1)
+  return {
+    album,
+    style: {
+      '--album-offset': direction * (0.74 * tilt + 0.26 * Math.max(magnitude - 1, 0)),
+      '--album-turn': `${-direction * 63 * tilt}deg`,
+      '--album-depth': `${-96 * tilt - 14 * Math.max(magnitude - 1, 0)}px`,
+      '--album-layer': Math.round(1000 / (1 + magnitude)),
+    },
+  }
+}))
 
 function selectAlbum(index: number) {
   const album = albums[index]
   if (album) selectedName.value = album.name
 }
 
-function useTape(album: GalleryAlbum) {
+function useTape(album: GalleryAlbum, event: MouseEvent) {
+  if (suppressClick && event.detail > 0) return
   if (album === selectedAlbum.value) {
     emit('open', album.name)
     return
@@ -32,16 +54,37 @@ async function focusTape(index: number) {
   viewport.value?.querySelector<HTMLElement>('.album-shelf__tape--selected')?.focus({ preventScroll: true })
 }
 
-function centerTape(event?: TransitionEvent) {
-  if (event && event.propertyName !== 'flex-basis') return
-  const strip = viewport.value
-  const tape = strip?.querySelector<HTMLElement>('.album-shelf__tape--selected')
-  if (strip && tape) {
-    strip.scrollLeft = tape.offsetLeft - (strip.clientWidth - tape.offsetWidth) / 2
+function beginDrag(event: PointerEvent) {
+  if (!event.isPrimary || event.button !== 0) return
+  suppressClick = false
+  const book = viewport.value?.querySelector<HTMLElement>('.album-shelf__tape')
+  if (albums.length < 2 || !book) return
+  pointer = {
+    id: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    position: selectedIndex.value,
+    step: book.offsetWidth * DRAG_STEP_RATIO,
   }
 }
 
-watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
+function moveDrag(event: PointerEvent) {
+  if (pointer?.id !== event.pointerId) return
+  const deltaX = event.clientX - pointer.x
+  if (dragPosition.value === null) {
+    if (Math.abs(deltaX) < DRAG_THRESHOLD || Math.abs(deltaX) < Math.abs(event.clientY - pointer.y)) return
+    viewport.value?.setPointerCapture(event.pointerId)
+    suppressClick = true
+  }
+  dragPosition.value = Math.max(0, Math.min(albums.length - 1, pointer.position - deltaX / pointer.step))
+}
+
+function endDrag(event: PointerEvent) {
+  if (pointer?.id !== event.pointerId) return
+  if (dragPosition.value !== null) selectAlbum(Math.round(dragPosition.value))
+  dragPosition.value = null
+  pointer = undefined
+}
 </script>
 
 <template>
@@ -50,28 +93,43 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
       <div
         ref="viewport"
         class="album-shelf__viewport"
+        :class="{ 'album-shelf__viewport--dragging': dragPosition !== null }"
         @keydown.left.prevent="focusTape(selectedIndex - 1)"
         @keydown.right.prevent="focusTape(selectedIndex + 1)"
+        @pointerdown="beginDrag"
+        @pointermove="moveDrag"
+        @pointerup="endDrag"
+        @pointercancel="endDrag"
+        @lostpointercapture.self="endDrag"
       >
         <div class="album-shelf__track">
           <button
-            v-for="album in albums"
+            v-for="{ album, style } in slides"
             :key="album.name"
             type="button"
             class="album-shelf__tape"
             :class="{ 'album-shelf__tape--selected': album === selectedAlbum }"
+            :style="style"
             :aria-label="album === selectedAlbum ? `打开相册 ${album.name}` : `选中相册 ${album.name}`"
             :aria-pressed="album === selectedAlbum"
-            @click="useTape(album)"
-            @transitionend.self="centerTape"
+            :tabindex="album === selectedAlbum ? 0 : -1"
+            @click="useTape(album, $event)"
           >
             <span class="album-shelf__box" aria-hidden="true">
-              <span class="album-shelf__spine">
-                <img v-if="album.cover" :src="album.cover.url" alt="" loading="lazy" decoding="async" />
+              <span v-for="side in ['left', 'right']" :key="side" class="album-shelf__spine" :class="`album-shelf__spine--${side}`">
                 <span>{{ album.name }}</span>
               </span>
               <span class="album-shelf__front">
-                <img v-if="album.cover" :src="album.cover.url" alt="" loading="lazy" decoding="async" />
+                <img
+                  v-if="album.cover"
+                  :src="album.cover.url"
+                  :data-gallery-cover="album === selectedAlbum ? '' : undefined"
+                  alt=""
+                  :loading="album === selectedAlbum ? 'eager' : 'lazy'"
+                  decoding="async"
+                  draggable="false"
+                />
+                <span v-else-if="album.locked" class="album-shelf__locked">需密码</span>
                 <span class="album-shelf__cover-label">{{ album.name }}</span>
               </span>
             </span>
@@ -87,7 +145,7 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
       </div>
       <p class="album-shelf__selection" aria-live="polite">
         <strong>{{ selectedAlbum.name }}</strong>
-        <span>{{ selectedAlbum.photos.length }} 张</span>
+        <span>{{ selectedAlbum.locked ? '需密码' : `${selectedAlbum.photos.length} 张` }}</span>
       </p>
       <button class="album-shelf__open" type="button" @click="emit('open', selectedAlbum.name)">打开相册 <span aria-hidden="true">↗</span></button>
     </div>
@@ -97,8 +155,8 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
 <style scoped>
 .album-shelf {
   --tape-height: clamp(215px, min(30vw, 42svh), 328px);
-  --spine-width: clamp(36px, 5.5vw, 57px);
-  --cover-width: calc(var(--tape-height) * 0.68);
+  --spine-width: clamp(12px, 1.7vw, 22px);
+  --cover-width: calc(var(--tape-height) * 0.72);
   --wood-dark: #372318;
   --wood-shade: #6b4229;
   --wood-light: #d29b60;
@@ -126,9 +184,10 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
 }
 
 .album-shelf__viewport {
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--wood-light) var(--wood-dark);
+  overflow: hidden;
+  perspective: 1000px;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
   border: 4px solid var(--wood-dark);
   border-bottom-color: #824e2f;
   background:
@@ -138,56 +197,40 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
 
 .album-shelf__track {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 6px;
-  width: max-content;
-  min-width: 100%;
-  padding: 30px 16px 5px;
+  height: calc(var(--tape-height) + 34px);
+  transform-style: preserve-3d;
 }
 
 .album-shelf__tape {
   --tape-stock: #51735d;
-  --spine-height: 0.9;
-  position: relative;
-  flex: 0 0 var(--spine-width);
+  position: absolute;
+  bottom: 9px;
+  left: 50%;
+  z-index: var(--album-layer);
+  width: var(--cover-width);
   height: var(--tape-height);
-  perspective: 900px;
+  transform-style: preserve-3d;
+  transform: translate3d(calc(-50% + var(--album-offset) * var(--cover-width)), 0, var(--album-depth))
+    rotateY(var(--album-turn));
 }
 
 .album-shelf__tape:nth-child(3n + 2) {
   --tape-stock: #80534f;
-  --spine-height: 0.84;
 }
 
 .album-shelf__tape:nth-child(3n) {
   --tape-stock: #4b657e;
-  --spine-height: 0.96;
 }
 
-.album-shelf__tape--selected {
-  z-index: 1;
-  flex-basis: var(--cover-width);
+.album-shelf__viewport--dragging,
+.album-shelf__viewport--dragging .album-shelf__tape {
+  cursor: grabbing;
 }
 
 .album-shelf__box {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: var(--spine-width);
-  height: calc(100% * var(--spine-height));
+  inset: 0;
   transform-style: preserve-3d;
-  transform: translate3d(-50%, 0, calc(var(--cover-width) / -2));
-}
-
-.album-shelf__tape:not(.album-shelf__tape--selected):is(:hover, :focus-visible) .album-shelf__box {
-  transform: translate3d(-50%, -6px, calc(var(--cover-width) / -2));
-}
-
-.album-shelf__tape--selected .album-shelf__box {
-  height: 100%;
-  transform: translate3d(-50%, -8px, 6px) rotateY(-90deg);
 }
 
 .album-shelf__spine,
@@ -203,24 +246,24 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
 }
 
 .album-shelf__spine {
-  inset-inline: 0;
+  left: 50%;
+  width: var(--spine-width);
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 12px 5px 20px;
+  justify-content: center;
+  padding: 8px 0;
+  border-width: 2px;
   background-image:
-    linear-gradient(90deg, #ffffff2b 0 4px, transparent 4px calc(100% - 5px), #21151050 calc(100% - 5px)),
+    linear-gradient(90deg, #ffffff2b 0 3px, transparent 3px calc(100% - 3px), #21151050 calc(100% - 3px)),
     linear-gradient(0deg, #e4ba7f 0 8px, transparent 8px);
-  transform: translateZ(calc(var(--cover-width) / 2));
 }
 
-.album-shelf__spine img {
-  width: 100%;
-  aspect-ratio: 1;
-  flex: none;
-  border: 2px solid var(--label-paper);
-  object-fit: cover;
-  image-rendering: pixelated;
+.album-shelf__spine--left {
+  transform: translateX(-50%) rotateY(-90deg) translateZ(calc(var(--cover-width) / 2));
+}
+
+.album-shelf__spine--right {
+  transform: translateX(-50%) rotateY(90deg) translateZ(calc(var(--cover-width) / 2));
 }
 
 .album-shelf__spine span {
@@ -228,20 +271,19 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
   overflow: hidden;
   writing-mode: vertical-rl;
   color: #fff3d8;
-  font: 700 clamp(12px, 1.6vw, 16px)/1.1 var(--font-mono);
+  font: 700 11px/1 var(--font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .album-shelf__front {
-  left: 50%;
-  width: var(--cover-width);
+  inset-inline: 0;
   flex-direction: column;
   gap: 6px;
   padding: 7px;
   background: var(--label-paper);
   box-shadow: inset 0 0 0 3px #cf671f;
-  transform: translateX(-50%) rotateY(90deg) translateZ(calc(var(--spine-width) / 2));
+  transform: translateZ(calc(var(--spine-width) / 2));
 }
 
 .album-shelf__front img {
@@ -258,6 +300,15 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
   color: var(--wood-dark);
   font: 700 clamp(14px, 2vw, 18px)/1.25 var(--font-mono);
   overflow-wrap: anywhere;
+}
+
+.album-shelf__locked {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  background: var(--tape-stock);
+  color: #fff3d8;
+  font: 700 14px var(--font-mono);
 }
 
 .album-shelf__controls {
@@ -323,29 +374,17 @@ watch([selectedAlbum, viewport], () => centerTape(), { flush: 'post' })
   box-shadow: inset 0 -3px #bf6328;
 }
 
-.album-shelf__tape--selected .album-shelf__front {
-  animation: show-cover 240ms ease-out;
+.album-shelf__tape {
+  transition: transform 380ms cubic-bezier(0.22, 0.7, 0.24, 1), opacity 240ms ease;
 }
 
-@keyframes show-cover {
-  from { opacity: 0.35; }
+.album-shelf__viewport--dragging .album-shelf__tape {
+  transition: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .album-shelf__tape {
-    transition: flex-basis 460ms var(--ease);
-  }
-
-  .album-shelf__box {
-    transition: transform 460ms var(--ease), height 460ms var(--ease);
-  }
-
-  .album-leave-active .album-shelf__tape--selected .album-shelf__box {
-    transition-duration: 310ms;
-  }
-
-  .album-leave-to .album-shelf__tape--selected .album-shelf__box {
-    transform: translate3d(-50%, -16px, 6px) rotateY(-155deg);
-  }
+.album-leave-to .album-shelf__tape:not(.album-shelf__tape--selected) {
+  opacity: 0;
+  transform: translate3d(calc(-50% + var(--album-offset) * var(--cover-width) * 1.85), 0, var(--album-depth))
+    rotateY(var(--album-turn));
 }
 </style>

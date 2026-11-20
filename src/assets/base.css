@@ -356,6 +356,5 @@ a:hover {
 /*
  * 波浪的"运动"改用 SMIL <animateTransform>（内联在各组件的 .parallax 里），
  * 不再依赖 CSS animation —— 部分内嵌预览 WebView 会禁用 SVG <use> 上的
- * CSS transform 动画，而 SMIL 由 SVG 引擎原生驱动，必定生效且不受
- * prefers-reduced-motion 影响。这里只保留尺寸与布局样式。
+ * CSS transform 动画。这里只保留尺寸与布局样式。
  */

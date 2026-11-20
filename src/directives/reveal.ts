@@ -13,10 +13,6 @@ export interface RevealOptions {
 
 type RevealVariant = 'up' | 'down' | 'left' | 'right' | 'zoom' | 'fade'
 
-const prefersReducedMotion = (): boolean =>
-  typeof window !== 'undefined' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
 const observerMap = new WeakMap<HTMLElement, IntersectionObserver>()
 
 /**
@@ -29,7 +25,7 @@ const observerMap = new WeakMap<HTMLElement, IntersectionObserver>()
  *   v-reveal="{ delay: 120, threshold: 0.3, once: false }"
  *
  * 性能：仅使用 transform / opacity，配合 IntersectionObserver（被动、GPU 合成）。
- * 无障碍：prefers-reduced-motion 或不支持 IO 时直接显示，不做动画。
+ * 不支持 IntersectionObserver 时直接显示。
  */
 export const reveal: Directive<HTMLElement, RevealOptions | number | undefined> = {
   mounted(el: HTMLElement, binding: DirectiveBinding<RevealOptions | number | undefined>) {
@@ -45,7 +41,7 @@ export const reveal: Directive<HTMLElement, RevealOptions | number | undefined> 
       el.style.setProperty('--reveal-delay', `${opts.delay}ms`)
     }
 
-    if (prefersReducedMotion() || typeof IntersectionObserver === 'undefined') {
+    if (typeof IntersectionObserver === 'undefined') {
       el.classList.add('is-visible')
       return
     }

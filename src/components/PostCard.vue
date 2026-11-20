@@ -481,18 +481,4 @@ const formattedViews = computed(() => {
 .exp-card__read > span { display: inline-block; transition: transform 180ms var(--ease-out); }
 .exp-card:is(:hover, :focus-visible) .exp-card__read > span { transform: translateX(5px); }
 
-@media (prefers-reduced-motion: reduce) {
-  .exp-card:is(:hover, :focus-visible), .exp-card:is(:hover, :focus-visible) .exp-card__cover-img, .exp-card:is(:hover, :focus-visible) .exp-card__read > span { transform: none; }
-  .exp-card__read > span { transition: none; }
-  .exp-card,
-  .exp-card:hover {
-    transform: none !important;
-  }
-
-  .exp-card:hover .exp-card__cover-img,
-  .exp-card:hover .exp-card__cover-pattern,
-  .exp-card:hover .exp-card__cover-icon {
-    transform: none;
-  }
-}
 </style>

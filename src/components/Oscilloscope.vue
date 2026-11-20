@@ -10,14 +10,12 @@ const modeNames = ['SIN', 'SQR', 'NOISE'] as const
 const frequency = ref(1.9)
 const amplitude = ref(72)
 const paused = ref(false)
-const reduced = ref(false)
 let phase = 0
 let raf = 0
 let lastTime = 0
 let inView = true
 let observer: IntersectionObserver | undefined
 let resizeObserver: ResizeObserver | undefined
-let media: MediaQueryList | undefined
 
 function sample(x: number): number {
   const signal = (x * frequency.value + phase) * Math.PI
@@ -66,7 +64,7 @@ function syncAnimation() {
   raf = 0
   lastTime = 0
   draw()
-  if (inView && !document.hidden && !paused.value && !reduced.value) raf = requestAnimationFrame(loop)
+  if (inView && !document.hidden && !paused.value) raf = requestAnimationFrame(loop)
 }
 
 function resizeCanvas() {
@@ -80,7 +78,7 @@ function resizeCanvas() {
 }
 
 function onPointerMove(event: PointerEvent) {
-  if (event.pointerType !== 'mouse' || reduced.value || paused.value) return
+  if (event.pointerType !== 'mouse' || paused.value) return
   const r = event.currentTarget instanceof HTMLElement ? event.currentTarget.getBoundingClientRect() : null
   if (!r) return
   frequency.value = Math.round((.5 + Math.min(1, Math.max(0, (event.clientX - r.left) / r.width)) * 3.5) * 10) / 10
@@ -88,14 +86,10 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function nextMode() { modeIndex.value = (modeIndex.value + 1) % modeNames.length }
-function onMotionChange() { reduced.value = media?.matches ?? false; syncAnimation() }
 
 watch([frequency, amplitude, modeIndex, () => props.scanning], draw)
 watch(paused, syncAnimation)
 onMounted(() => {
-  media = window.matchMedia('(prefers-reduced-motion: reduce)')
-  reduced.value = media.matches
-  media.addEventListener('change', onMotionChange)
   document.addEventListener('visibilitychange', syncAnimation)
   resizeCanvas()
   if (typeof ResizeObserver !== 'undefined' && canvasRef.value) {
@@ -112,7 +106,6 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
   observer?.disconnect()
   resizeObserver?.disconnect()
-  media?.removeEventListener('change', onMotionChange)
   document.removeEventListener('visibilitychange', syncAnimation)
   window.removeEventListener('resize', resizeCanvas)
 })
@@ -123,7 +116,7 @@ onBeforeUnmount(() => {
     <button class="osc__screen" type="button" aria-label="点击切换下一种波形" @click="nextMode" @pointermove="onPointerMove">
       <canvas ref="canvasRef" class="osc__canvas" aria-hidden="true" />
       <span class="osc__readout">{{ modeNames[modeIndex] }} · {{ Number(frequency).toFixed(1) }} Hz</span>
-      <span class="osc__status">{{ scanning ? '正在寻找下一次实验' : reduced ? '静态信号' : paused ? '信号已冻结' : '点一下切换波形' }}</span>
+      <span class="osc__status">{{ scanning ? '正在寻找下一次实验' : paused ? '信号已冻结' : '点一下切换波形' }}</span>
     </button>
     <figcaption class="osc__panel">
       <span class="osc__label">{{ props.label }}</span>
@@ -187,5 +180,4 @@ onBeforeUnmount(() => {
 .osc__control input { display: block; width: 100%; height: 32px; padding: 0; cursor: ew-resize; accent-color: var(--color-primary); }
 .osc__control input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) { .osc__mode:hover, .osc__pause:hover { color: var(--color-primary); background: var(--color-primary-soft); } }
-@media (prefers-reduced-motion: reduce) { .osc__mode, .osc__pause, .osc__switch::before { transition: none; } .osc__mode:active, .osc__pause:active { transform: none; } }
 </style>

@@ -151,9 +151,4 @@ function navigate(event: MouseEvent, p: number) {
   user-select: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .pagination__btn {
-    transition: none;
-  }
-}
 </style>

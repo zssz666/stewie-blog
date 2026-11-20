@@ -2,7 +2,7 @@
  * 管理后台 API（文章 CRUD / 封面上传 / 评论审核）
  * request() 已内置 /api 前缀与 Bearer token，故路径写 /admin/...
  */
-import type { Comment, MovieCover, PageResult, Post, PostInput, UploadResult } from '@/types/blog'
+import type { Comment, GalleryAlbum, MovieCover, PageResult, Post, PostInput, UploadResult } from '@/types/blog'
 import { request } from './request'
 import { getToken } from '@/utils/token'
 
@@ -108,6 +108,21 @@ export function uploadFile(file: File, options: UploadOptions = {}): Promise<Upl
 /** 封面上传（兼容旧调用） */
 export function uploadCover(file: File): Promise<UploadResult> {
   return uploadFile(file, { scene: 'cover' })
+}
+
+export function getAdminGalleryAlbums() {
+  return request<GalleryAlbum[]>('/admin/photos')
+}
+
+export function setGalleryPassword(album: string, password: string) {
+  return request<void>(`/admin/photos/albums/password?${new URLSearchParams({ album })}`, {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+  })
+}
+
+export function removeGalleryPassword(album: string) {
+  return request<void>(`/admin/photos/albums/password?${new URLSearchParams({ album })}`, { method: 'DELETE' })
 }
 
 export function createGalleryAlbum(album: string) {

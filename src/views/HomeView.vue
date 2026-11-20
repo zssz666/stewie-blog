@@ -127,7 +127,7 @@ function finishExperiment(found: boolean) {
   experimentBusy.value = false
   if (!found) return
   heroBallRef.value?.setEmotion('33')
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) heroBallRef.value?.spin(1)
+  heroBallRef.value?.spin(1)
 }
 
 /* ── 尾声 CTA 小球：点击随机换表情 + 低概率撒花 ── */
@@ -533,9 +533,6 @@ html.dark .hero__starfield {
 .hero.motion-paused .hero__stars,
 .home--paused .hero__stars { animation-play-state: paused; }
 
-@media (prefers-reduced-motion: reduce) {
-  .hero__stars { animation: none; }
-}
 
 /* ── 图框：双线制图边框 ── */
 .hero__frame {
@@ -1080,25 +1077,23 @@ html.dark .hero__sticker {
 }
 
 @supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .posts__cell--cover-window {
-      /* 避免普通淡入抢在滚动开窗之前把封面藏起来。 */
-      opacity: 1;
-      transform: none;
-      transition: none;
-      will-change: auto;
-      view-timeline-name: --cover-window;
-    }
+  .posts__cell--cover-window {
+    /* 避免普通淡入抢在滚动开窗之前把封面藏起来。 */
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+    view-timeline-name: --cover-window;
+  }
 
-    .posts__cell--cover-window :deep(.exp-card__cover) {
-      animation: open-cover-window linear both;
-      animation-timeline: --cover-window;
-      animation-range: entry 0% cover 42%;
-    }
+  .posts__cell--cover-window :deep(.exp-card__cover) {
+    animation: open-cover-window linear both;
+    animation-timeline: --cover-window;
+    animation-range: entry 0% cover 42%;
+  }
 
-    .posts__cell--cover-window:focus-within :deep(.exp-card__cover) {
-      animation: none;
-    }
+  .posts__cell--cover-window:focus-within :deep(.exp-card__cover) {
+    animation: none;
   }
 
   @media (min-width: 1101px) and (min-height: 900px) {
@@ -1523,57 +1518,4 @@ html.dark .hero__sticker {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* 减少动态：图框与标题直接呈现 */
-  .home--intro .hero__frame,
-  .home--intro .hero-title__ch,
-  .home--intro .hero__eyebrow-dot {
-    animation: none;
-  }
-
-  .home--intro .hero-title__ch {
-    color: var(--color-heading);
-    -webkit-text-stroke-color: transparent;
-  }
-
-  .home--intro .hero__eyebrow-dot {
-    opacity: 1;
-  }
-
-  .hero__scroll-hint svg {
-    animation: none;
-  }
-
-  .hero__btn:active {
-    transform: none;
-  }
-
-  .hero__sticker:hover {
-    transform: rotate(3.5deg);
-  }
-
-  /* 吉祥物 / 星尘 / 弹幕：静止 */
-  .hero__mascot-btn,
-  .home-cta__ball-btn {
-    animation: none;
-  }
-
-  .hero__mascot-btn:hover,
-  .hero__mascot-btn:active {
-    transform: none;
-  }
-
-  .spark {
-    animation: none;
-    opacity: 0.85;
-  }
-
-  .marquee { animation: none; }
-
-  .home--static .reveal {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
-  }
-}
 </style>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef, useTemplateRef } from 'vue'
-import { createGalleryAlbum, deleteGalleryPhoto, setGalleryCover, uploadFile } from '@/api/admin'
-import { getGalleryAlbums } from '@/api/post'
+import { computed, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { createGalleryAlbum, deleteGalleryPhoto, getAdminGalleryAlbums, removeGalleryPassword, setGalleryCover, setGalleryPassword, uploadFile } from '@/api/admin'
 import type { GalleryAlbum } from '@/types/blog'
+
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024
+const CONCURRENT_PHOTO_UPLOADS = 3
 
 const albums = shallowRef<GalleryAlbum[]>([])
 const selectedName = shallowRef('')
 const newAlbumName = shallowRef('')
+const albumPassword = shallowRef('')
 const photoInput = useTemplateRef<HTMLInputElement>('photoInput')
 const loading = shallowRef(true)
 const busy = shallowRef(false)
@@ -15,18 +18,18 @@ const error = shallowRef('')
 const notice = shallowRef('')
 const selectedAlbum = computed(() => albums.value.find((album) => album.name === selectedName.value))
 
-function showError(cause: unknown) {
-  error.value = cause instanceof Error ? cause.message : String(cause)
+function errorMessage(cause: unknown) {
+  return cause instanceof Error ? cause.message : String(cause)
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    albums.value = await getGalleryAlbums()
+    albums.value = await getAdminGalleryAlbums()
     if (!selectedAlbum.value) selectedName.value = albums.value[0]?.name ?? ''
   } catch (cause) {
-    showError(cause)
+    error.value = errorMessage(cause)
   } finally {
     loading.value = false
   }
@@ -42,10 +45,9 @@ async function save(mutate: () => Promise<void>, message: string) {
     notice.value = message
     await load()
   } catch (cause) {
-    showError(cause)
+    error.value = errorMessage(cause)
   } finally {
     busy.value = false
-    uploadPercent.value = null
   }
 }
 
@@ -59,24 +61,79 @@ function createAlbum() {
   }, `相册「${album}」已创建。`)
 }
 
-function upload() {
+async function upload() {
   const input = photoInput.value
-  const file = input?.files?.[0]
   const album = selectedAlbum.value
-  if (!input || !file || !album) return
-  void save(async () => {
-    uploadPercent.value = 0
-    await uploadFile(file, {
-      album: album.name,
-      onProgress: (percent) => { uploadPercent.value = percent },
-    })
+  if (!input?.files?.length || !album || busy.value || loading.value) return
+
+  const files = Array.from(input.files)
+  const uploadable = files.filter((file) => file.size <= MAX_PHOTO_BYTES)
+  const failures = files
+    .filter((file) => file.size > MAX_PHOTO_BYTES)
+    .map((file) => `${file.name} 超过 10 MB。`)
+  const albumName = album.name
+  let combinedProgress = 0
+
+  async function uploadOne(file: File) {
+    let previousPercent = 0
+    try {
+      await uploadFile(file, {
+        album: albumName,
+        onProgress: (percent) => {
+          combinedProgress += percent - previousPercent
+          previousPercent = percent
+          uploadPercent.value = Math.round(combinedProgress / uploadable.length)
+        },
+      })
+      return null
+    } catch (cause) {
+      return `${file.name}：${errorMessage(cause)}`
+    }
+  }
+
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  uploadPercent.value = 0
+  try {
+    for (let start = 0; start < uploadable.length; start += CONCURRENT_PHOTO_UPLOADS) {
+      const group = uploadable.slice(start, start + CONCURRENT_PHOTO_UPLOADS)
+      const results = await Promise.all(group.map(uploadOne))
+      failures.push(...results.filter((message) => message !== null))
+    }
     input.value = ''
-  }, '照片已上传。')
+    const uploaded = files.length - failures.length
+    if (uploaded > 0) {
+      await load()
+      notice.value = `已上传 ${uploaded} 张照片。`
+    }
+    if (failures.length) {
+      error.value = [error.value, `${failures.length} 张照片未上传`, ...failures].filter(Boolean).join('\n')
+    }
+  } finally {
+    busy.value = false
+    uploadPercent.value = null
+  }
 }
 
 function chooseCover(name: string) {
   const album = selectedAlbum.value
   if (album) void save(() => setGalleryCover(album.name, name), '相册封面已更新。')
+}
+
+function setPassword() {
+  const album = selectedAlbum.value
+  if (!album || !albumPassword.value) return
+  void save(async () => {
+    await setGalleryPassword(album.name, albumPassword.value)
+    albumPassword.value = ''
+  }, '相册查看密码已保存。')
+}
+
+function removePassword() {
+  const album = selectedAlbum.value
+  if (!album?.locked || !window.confirm(`移除「${album.name}」的密码后，所有访客都能查看照片。确定移除吗？`)) return
+  void save(() => removeGalleryPassword(album.name), '相册已恢复公开查看。')
 }
 
 function remove(name: string) {
@@ -86,6 +143,7 @@ function remove(name: string) {
   void save(() => deleteGalleryPhoto(album.name, name), '照片已删除。')
 }
 
+watch(selectedName, () => { albumPassword.value = '' })
 onMounted(load)
 </script>
 
@@ -94,7 +152,7 @@ onMounted(load)
     <div class="admin-pagehead">
       <div>
         <h1 class="admin-pagehead__title">照片管理</h1>
-        <p class="admin-pagehead__sub">每个相册对应 <code>my-imgs/</code> 下的一个目录，照片会公开展示。</p>
+        <p class="admin-pagehead__sub">每个相册对应 <code>my-imgs/</code> 下的一个目录。</p>
       </div>
       <RouterLink to="/photos" class="admin-panel__more" target="_blank" rel="noopener">查看照片墙 ↗</RouterLink>
     </div>
@@ -115,12 +173,13 @@ onMounted(load)
           </select>
         </label>
         <label class="admin-photos__field">
-          <span>选择照片</span>
+          <span>选择照片（可多选，每张最多 10 MB）</span>
           <input
             ref="photoInput"
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
             :disabled="loading || busy"
+            multiple
             required
           />
         </label>
@@ -128,11 +187,40 @@ onMounted(load)
           {{ uploadPercent === null ? '上传照片' : `上传中 ${uploadPercent}%` }}
         </button>
       </form>
+      <form
+        v-if="selectedAlbum && selectedAlbum.name !== '未归档'"
+        class="admin-panel__body admin-photos__form"
+        @submit.prevent="setPassword"
+      >
+        <label class="admin-photos__field">
+          <span>「{{ selectedAlbum.name }}」查看密码 · {{ selectedAlbum.locked ? '已加锁' : '公开' }}</span>
+          <input
+            v-model="albumPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="至少 8 个字符"
+            minlength="8"
+            maxlength="72"
+            :disabled="loading || busy"
+            required
+          />
+        </label>
+        <button class="btn btn--primary" type="submit" :disabled="loading || busy">
+          {{ selectedAlbum.locked ? '更改密码' : '设置密码' }}
+        </button>
+        <button
+          v-if="selectedAlbum.locked"
+          class="btn btn--link"
+          type="button"
+          :disabled="loading || busy"
+          @click="removePassword"
+        >移除密码</button>
+      </form>
     </div>
 
     <p v-if="notice" class="admin-photos__notice" role="status">{{ notice }}</p>
     <div v-if="error" class="admin-alert admin-alert--error" role="alert">
-      {{ error }}
+      <span class="admin-photos__error-text">{{ error }}</span>
       <button class="btn btn--link" type="button" :disabled="loading || busy" @click="load">重新加载</button>
     </div>
     <p v-if="loading" class="admin-loading" role="status">正在加载照片…</p>
@@ -186,7 +274,7 @@ onMounted(load)
   font: inherit;
 }
 
-.admin-photos__field :is(input[type='text'], select) {
+.admin-photos__field :is(input[type='text'], input[type='password'], select) {
   min-height: 40px;
   padding: 6px 10px;
   border: 1px solid var(--color-border);
@@ -198,6 +286,11 @@ onMounted(load)
 .admin-photos__notice,
 .admin-photos .admin-alert {
   margin-top: 16px;
+}
+
+.admin-photos__error-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .admin-photos__grid {

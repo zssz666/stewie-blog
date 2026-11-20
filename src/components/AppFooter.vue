@@ -299,11 +299,6 @@ const socialIcons: Record<string, string> = {
   box-shadow: var(--ring);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .footer-waves {
-    display: none;
-  }
-}
 
 @media (max-width: 640px) {
   .footer-waves {

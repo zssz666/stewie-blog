@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
 /**
  * useMagnetic —— 鼠标靠近元素时产生微弱磁吸效果。
@@ -14,25 +14,13 @@ export function useMagnetic(strength = 12, radius = 1.5, ease = 0.12) {
   let raf = 0
   let currentX = 0
   let currentY = 0
-  let motionMedia: MediaQueryList | undefined
-
-  function resetForReducedMotion() {
-    if (!motionMedia?.matches) return
-    cancelAnimationFrame(raf)
-    currentX = currentY = x.value = y.value = 0
-  }
-
-  onMounted(() => {
-    motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
-    motionMedia.addEventListener('change', resetForReducedMotion)
-  })
 
   function onMouseMove(e: MouseEvent) {
     const el = e.currentTarget as HTMLElement
     if (!el) return
 
     // 跳过触屏和非悬停设备
-    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
 
     const rect = el.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
@@ -53,7 +41,6 @@ export function useMagnetic(strength = 12, radius = 1.5, ease = 0.12) {
   }
 
   function onMouseLeave() {
-    if (motionMedia?.matches) { resetForReducedMotion(); return }
     animateTo(0, 0)
   }
 
@@ -73,7 +60,6 @@ export function useMagnetic(strength = 12, radius = 1.5, ease = 0.12) {
 
   onBeforeUnmount(() => {
     cancelAnimationFrame(raf)
-    motionMedia?.removeEventListener('change', resetForReducedMotion)
   })
 
   return { x, y, onMouseMove, onMouseLeave }

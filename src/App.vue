@@ -167,18 +167,4 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .back-to-top:hover .back-to-top__icon {
-    animation: none;
-  }
-
-  .back-to-top:hover {
-    transform: none;
-  }
-
-  .top-btn-enter-active,
-  .top-btn-leave-active {
-    transition: none;
-  }
-}
 </style>

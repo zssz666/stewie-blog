@@ -1633,32 +1633,6 @@ const socialIcons: Record<string, string> = {
 }
 
 /* ============================================================
-   减少动态
-   ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  .about__motto-deco,
-  .about__hero-wave-path,
-  .about__avatar-ring,
-  .bento__emoji,
-  .bento__focus-glow,
-  .bento__eq i {
-    animation: none;
-  }
-
-  .about__title::after {
-    animation: none;
-  }
-
-  .bento:hover,
-  .about__social:hover,
-  .bento__stack-item:hover,
-  .bento__hobbies-tags span:hover,
-  .bento__resume-list li:hover {
-    transform: none;
-  }
-}
-
-/* ============================================================
    FAQ 常见问题（AEO：结构化问答区块，内容随 DOM 直出）
    ============================================================ */
 .about__faq {
